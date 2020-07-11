@@ -10,26 +10,16 @@ Perturbseq analysis package
 
 Welcome!
 
+This package implements functionality for the analysis of Perturb-seq data.
+
 .. toctree::
    :maxdepth: 2
    :hidden:
 
    API/index
+   Install
+   Examples
 
-API
-===
-
-Preprocessing: `pp`
--------------------
-Cells per perturbation, etc.
-
-Tools: `tl`
--------------------
-Tools
-
-Plotting: `pl`
--------------------
-Plotting things.
 
 Indices and tables
 ==================
