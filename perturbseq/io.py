@@ -7,7 +7,8 @@ def read_perturbations_csv(data=AnnData,
                            cell2guide_csv: str,
                            guide2gene_csv: Optional[str] = None,
                            pref: Optional[str] = 'perturb',
-                           sep='\t',copy=False):
+                           sep: Optional[str] = '\t',
+                           copy: Optional[bool] = False):
 
     """
     Read in which perturbations were present in which cell.
