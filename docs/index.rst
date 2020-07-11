@@ -13,7 +13,7 @@ Welcome!
 This package implements functionality for the analysis of Perturb-seq data.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 10
    :hidden:
 
    API/index

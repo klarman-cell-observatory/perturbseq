@@ -3,12 +3,9 @@ API
 ===
 
 
-You can import perturbseq as::
+Import perturbseq as::
 
    import perturbseq as perturb                                                                                            
-
-.. note::
-   Testnote
 
 Preprocessing: `pp`
 -------------------
@@ -21,6 +18,7 @@ Preprocessing: `pp`
 
    pp.subsample_cells
    pp.cells_per_perturbation
+   
 
 Tools: `tl`
 -------------------
