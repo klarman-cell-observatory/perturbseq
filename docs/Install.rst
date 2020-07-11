@@ -1,4 +1,9 @@
 
+.. toctree::
+   :maxdepth: 10
+   :hidden:
+
+
 To install perturbseq::
 
   git clone https://github.com/klarman-cell-observatory/perturbseq
