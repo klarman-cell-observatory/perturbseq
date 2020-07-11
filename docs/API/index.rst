@@ -16,7 +16,7 @@ Read in guides.
 .. autosummary::
    :toctree: .
 
-   perturbseq.io.read_perturbations_csv
+   io.read_perturbations_csv
  
 
 Preprocessing: `pp`
