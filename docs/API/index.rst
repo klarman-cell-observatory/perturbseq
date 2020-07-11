@@ -4,7 +4,9 @@ API
 
 Import perturbseq as::
 
-   import perturbseq as perturb                                                                                            
+   import perturbseq as perturb                                                     
+
+                                       
 Read in data: `io`
 ------------------
 
@@ -37,12 +39,10 @@ Preprocessing: `pp`
    perturbseq.pp.perturb2obs
    perturbseq.pp.moi
 
-Tools: `tl`
--------------------
 
-.. module:: perturbseq.tl
-.. currentmodule:: perturbseq
+Indices and tables
+==================
 
-.. autosummary::
-   :toctree: .
-
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
