@@ -6,8 +6,19 @@ API
 Import perturbseq as::
 
    import perturbseq as perturb                                                                                            
+Read in data: `io`
+------------------
 
 Read in guides.
+
+.. module:: perturbseq.io
+.. currentmodule:: perturbseq
+
+.. autosummary::
+   :toctree: .
+
+   io.read_perturbations_csv
+ 
 
 Preprocessing: `pp`
 -------------------
@@ -25,6 +36,7 @@ Preprocessing: `pp`
    pp.subsample_cells
    pp.cells_per_perturbation
    pp.perturb2obs
+   pp.moi
 
 Tools: `tl`
 -------------------
@@ -34,6 +46,4 @@ Tools: `tl`
 
 .. autosummary::
    :toctree: .
-
-   tl.moi
 

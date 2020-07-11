@@ -3,9 +3,30 @@ import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
 
-def read_perturbations_csv(adata_here,cell2guide_csv,guide2gene_csv=None,pref='perturb',
+def read_perturbations_csv(data=AnnData,
+                           cell2guide_csv: str,
+                           guide2gene_csv: Optional[str] = None,
+                           pref: Optional[str] = 'perturb',
                            sep='\t',copy=False):
+
+    """
+    Read in which perturbations were present in which cell.
+
+    Args:
+    ----
+    data
+        adata
+    cell2guide_csv 
+        csv file where each line is a cell and each column in a guide. It has a 1 if the guide is present in the cell and a 0 otherwise.
+    guide2gene_csv
+        (optional) a csv file mapping which gene is targeted by each guide. This is useful for analyses aggregating across all guides of a gene.
+    pref: 
     
+    Returns:
+        something: something
+    """
+    
+
     import pandas as pd
 
     if copy: adata_here = adata_here.copy()
