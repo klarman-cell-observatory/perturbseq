@@ -8,7 +8,7 @@ from setuptools import setup, find_packages
 setup(
     name='perturbseq',
     description='Perturb-seq package',
-    url='http://github.com/oursu/perturbseq',
+    url='https://github.com/klarman-cell-observatory/perturbseq',
     author='Oana Ursu',
     author_email='oursu@broadinstitute.org',
     license='MIT-License',
