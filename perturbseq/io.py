@@ -3,12 +3,12 @@ import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
 
-def read_perturbations_csv(data=AnnData,
+def read_perturbations_csv(data,
                            cell2guide_csv: str,
-                           guide2gene_csv: Optional[str] = None,
-                           pref: Optional[str] = 'perturb',
-                           sep: Optional[str] = '\t',
-                           copy: Optional[bool] = False):
+                           guide2gene_csv: str = None,
+                           pref: str = 'perturb',
+                           sep: str = '\t',
+                           copy: bool = False):
 
     """
     Read in which perturbations were present in which cell.

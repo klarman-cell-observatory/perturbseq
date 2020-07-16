@@ -20,11 +20,9 @@ from datetime import datetime
 
 
 HERE=Path(__file__).parent
-on_rtd=os.environ.get('READTHEDOCS') == True
 sys.path.insert(0, str(HERE.parent))
-
-# sys.path.insert(0, os.path.abspath('.'))
-
+on_rtd=os.environ.get('READTHEDOCS') == True
+print(sys.path)
 
 # -- Project information -----------------------------------------------------
 

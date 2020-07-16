@@ -3,6 +3,52 @@ import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
 
+def compute_TPT(gbcs_dataset):
+    
+    '''
+    input: pandas data frame with the columns "cbc", "umi", "gbc", "r2" where every row is a read 
+    output: pandas data frame with the columns "gbc", "cbc", "umi", "cbc-umi-r2-count", "cbc-umi-count", "TPT"
+    NOTE: for the input, multiple reads corresponding to the same cbc-umi combination should be listed as separate lines!
+    '''
+
+    import copy
+    import re
+    import time
+    import pandas as pd
+    import numpy as np
+
+    print("======== annotating cbc-umi pairs, and cbc-umi-r2")
+    gbcs_dataset['cbcumi']=[x+'-'+y for x,y in zip(gbcs_dataset['cbc'],gbcs_dataset['umi'])]
+    cbcumir2=list([x+'+'+y for x,y in zip(gbcs_dataset['cbcumi'],gbcs_dataset['r2'])])
+    gbcs_dataset['cbcumir2']=list([x+'_gbc_'+y for x,y in zip(cbcumir2,gbcs_dataset['gbc'])])
+
+    print("======== counting the numbers of reads supporting cbc-umi-r2 and for denominator cbc-umi")
+    cbcumi_group=gbcs_dataset.groupby('cbcumi').size()
+    cbcumi_r2_group=gbcs_dataset.groupby('cbcumir2').size()
+    cbcumi_from_grouped_reads=[x.split('+')[0] for x in cbcumi_r2_group.index]
+
+    print("======== computing TPT")
+    #divide every cbc-umi-r2 value by the cbc-umi values 
+    combo_counts=pd.DataFrame({'cbc-umi-r2':cbcumi_r2_group,
+                              'cbc-umi-r2-name':cbcumi_r2_group.index,
+                              'cbc-umi':cbcumi_from_grouped_reads})
+    combo_counts['cbc-umi-total']=copy.deepcopy(list(cbcumi_group.loc[combo_counts['cbc-umi']]))
+    combo_counts['TPT']=1.0*combo_counts['cbc-umi-r2']/combo_counts['cbc-umi-total']
+    
+    combo_counts['gbc']=list([x.split('_gbc_')[1] for x in list(combo_counts.loc[:,'cbc-umi-r2-name'])])
+    combo_counts['umi']=list([x.split('-')[1] for x in list(combo_counts['cbc-umi'])])
+    combo_counts['cbc']=list([x.split('-')[0] for x in list(combo_counts['cbc-umi'])])
+    
+    print("======== compiling the final result")
+    to_return=pd.DataFrame({'gbc':combo_counts['gbc'],
+                           'cbc':combo_counts['cbc'],
+                           'umi':combo_counts['umi'],
+                           'cbc-umi-r2-count':combo_counts['cbc-umi-r2'],
+                           'cbc-umi-count':combo_counts['cbc-umi-total'],
+                           'TPT':combo_counts['TPT']})
+    to_return=to_return.reset_index(drop=True)
+    return(to_return)
+
 def subsample_cells(adata,num_cells,grouping_variable):
     import random
     cells_keep=[]
