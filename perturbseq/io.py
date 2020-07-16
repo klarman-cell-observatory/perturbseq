@@ -4,11 +4,11 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 def read_perturbations_csv(my_adata,
-                           cell2guide_csv: str,
-                           guide2gene_csv: str = None,
-                           pref: str = 'perturb',
-                           sep: str = '\t',
-                           copy: bool = False):
+                           cell2guide_csv,
+                           guide2gene_csv = None,
+                           pref = 'perturb',
+                           sep = '\t',
+                           copy = False):
 
     """
     Read in which perturbations were present in which cell.
@@ -24,7 +24,7 @@ def read_perturbations_csv(my_adata,
         (optional) a csv file mapping which gene is targeted by each guide. This is useful for analyses aggregating across all guides of a gene.
     pref (default: "perturb")
         (optional) a prefix to add to annotations. This is meant to allow the user to have potentially multiple modes of perturbations allowed.
-    sep (default: "\t")
+    sep (default: "\\t")
         (optional) separator in the csv file. 
     copy (default: False)
         (optional) whether to return a copy of the annotation data
