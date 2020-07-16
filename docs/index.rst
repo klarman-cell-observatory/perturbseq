@@ -23,9 +23,4 @@ This package implements functionality for the analysis of Perturb-seq data.
    Examples
 
 
-Indices and tables
-==================
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
