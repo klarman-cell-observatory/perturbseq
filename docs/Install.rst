@@ -1,8 +1,10 @@
-
 .. toctree::
    :maxdepth: 10
    :hidden:
 
+
+Install
+====
 
 To install perturbseq::
 

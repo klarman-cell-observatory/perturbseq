@@ -30,14 +30,13 @@ Preprocessing: `pp`
 .. autosummary::
    :toctree: .
 
-   perturbseq.pp.annotate_controls
-   perturbseq.pp.remove_guides_from_gene_names
-   perturbseq.pp.perturbations_per_cell
-   perturbseq.pp.perturbations_per_cell
-   perturbseq.pp.subsample_cells
-   perturbseq.pp.cells_per_perturbation
-   perturbseq.pp.perturb2obs
-   perturbseq.pp.moi
+   pp.annotate_controls
+   pp.remove_guides_from_gene_names
+   pp.perturbations_per_cell
+   pp.subsample_cells
+   pp.cells_per_perturbation
+   pp.perturb2obs
+   pp.moi
 
 
 Indices and tables
