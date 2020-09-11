@@ -19,7 +19,7 @@ Read in guides.
    :toctree: .
 
    io.read_perturbations_csv
- 
+   io.compute_TPT
 
 Preprocessing: `pp`
 -------------------
