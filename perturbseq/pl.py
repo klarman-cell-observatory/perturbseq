@@ -6,6 +6,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import copy
 import numpy as np
+from . import pp
 
 def enriched_features(adata,f1,f2,fdr=None,x_or=5,x_p=20,**kwargs):
     
@@ -34,12 +35,14 @@ def enriched_features(adata,f1,f2,fdr=None,x_or=5,x_p=20,**kwargs):
     ax.set_ylabel(f1)
     ax.set_xlabel(f2)
 
-def perturbations_per_cell(adata_here,vmin=0,vmax=5,ax=None,pref='perturb',level='guide',copy=False):
+def perturbations_per_cell(adata_here,vmin=0,vmax=5,ax=None,pref='',level='guide',copy=False):
+
     if ax==None:
         fig,plots=plt.subplots(1)
         ax=plots
     import copy
-    vals=copy.deepcopy(adata_here.obs[pref+'.'+level+'.perturbations_per_cell'])
+    pp.perturbations_per_cell(adata_here,pref=pref,level=level)
+    vals=copy.deepcopy(adata_here.obs[pref+level+'.perturbations_per_cell'])
     vals[vals>vmax]=vmax
     vals[vals<vmin]=vmin
     
@@ -51,15 +54,16 @@ def perturbations_per_cell(adata_here,vmin=0,vmax=5,ax=None,pref='perturb',level
     ax.grid(False)
     plt.show()
 
-def cells_per_perturbation(adata_here,ax=None,pref='perturb',level='guide',vmin=0,vmax=None):
+def cells_per_perturbation(adata_here,ax=None,pref='',level='guide',vmin=0,vmax=None):
     if ax==None:
         fig,plots=plt.subplots(1)
         ax=plots
     import copy
-    for var in [pref+'.'+level+'.cells_per_perturbation',pref+'.'+level+'.cells_per_perturbation.singly_infected']:
+    pp.cells_per_perturbation(adata_here,pref=pref,level=level)
+    for var in [pref+level+'.cells_per_perturbation',pref+level+'.cells_per_perturbation.singly_infected']:
         color='lightgray'
         label='all'
-        if var==pref+'.'+level+'.cells_per_perturbation.singly_infected':
+        if var==pref+level+'.cells_per_perturbation.singly_infected':
             color='black'
             label='single inf.'
         n, bins, patches=ax.hist(adata_here.uns[var]['Number of cells'],
@@ -74,7 +78,7 @@ def cells_per_perturbation(adata_here,ax=None,pref='perturb',level='guide',vmin=
     ax.set_ylabel('Number of\n'+level+'s')
     ax.legend(loc='lower right') 
 
-def ranked_cells_per_perturbation(adata_here,figwidth=2,figheight=10,pref='perturb',level='guide',vmin=0,vmax=None):
+def ranked_cells_per_perturbation(adata_here,figwidth=2,figheight=10,pref='',level='guide',vmin=0,vmax=None):
     if vmin!=None and vmax!=None:
         fig,plots=plt.subplots(1,2)
     else:
@@ -83,13 +87,13 @@ def ranked_cells_per_perturbation(adata_here,figwidth=2,figheight=10,pref='pertu
     fig.set_size_inches(figwidth,figheight)
 
     import copy
-    names=[pref+'.'+level+'.cells_per_perturbation.singly_infected',pref+'.'+level+'.cells_per_perturbation']
+    names=[pref+level+'.cells_per_perturbation.singly_infected',pref+level+'.cells_per_perturbation']
     for i in range(len(names)):
         df=adata_here.uns[names[i]]['Number of cells']
         
         color='lightgray'
         label='all'
-        if names[i]==pref+'.'+level+'.cells_per_perturbation.singly_infected':
+        if names[i]==pref+level+'.cells_per_perturbation.singly_infected':
             color='black'
             label='single inf.'
             sorted_order=df.sort_values().index
@@ -98,7 +102,7 @@ def ranked_cells_per_perturbation(adata_here,figwidth=2,figheight=10,pref='pertu
         plots[i].barh(df.index,df,color=color,label=label)
         plots[i].set_ylim(-0.5,df.shape[0]-0.5)
         plots[i].grid(False)
-        if names[i]==pref+'.'+level+'.cells_per_perturbation.singly_infected':
+        if names[i]==pref+level+'.cells_per_perturbation.singly_infected':
             plots[i].set_yticklabels(sorted_order,fontsize=figheight/df.shape[0]*60)
         else:
             plots[i].set_yticklabels([])

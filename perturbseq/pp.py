@@ -3,6 +3,27 @@ import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
 
+def filter_multiplets(adata_here,pref='',level='guide',keep_unassigned=True,
+                           copy=False):
+    
+    import pandas as pd
+
+    if copy: adata_here = adata_here.copy()
+        
+    #===============
+    if pref+'guide.perturbations_per_cell' not in adata_here.obs:
+        perturb.pp.perturbations_per_cell(adata_here,level=level)
+    keep=adata_here.obs_names[adata_here.obs[pref+'guide.perturbations_per_cell']==1]
+    if keep_unassigned:
+        unassigned=adata_here.obs_names[adata_here.obs[pref+'guide']=='unassigned']
+        keep=list(set(keep).union(set(unassigned)))  
+    adata_here._inplace_subset_obs(keep)
+    
+    #===============
+        
+    if copy:
+        return(adata_here)
+
 def compute_TPT(gbcs_dataset):
     
     '''
@@ -63,9 +84,9 @@ def subsample_cells(adata,num_cells,grouping_variable):
             cells_keep.append(cell)
     return(adata[cells_keep,:])
 
-def perturb2obs(adata_here,pref='perturb',copy=False):
-    if pref+'.cell2guide' not in adata_here.obsm:
-        print('ERROR: '+pref+'.cell2guide'+' was not found in adata.obsm. Please first run perturb.read_perturbations_csv')
+def perturb2obs(adata_here,pref='',copy=False):
+    if pref+'cell2guide' not in adata_here.obsm:
+        print('ERROR: '+pref+'cell2guide'+' was not found in adata.obsm. Please first run perturb.read_perturbations_csv')
         exit
     else:
         if copy: adata_here = adata_here.copy()
@@ -75,9 +96,9 @@ def perturb2obs(adata_here,pref='perturb',copy=False):
         #2. annotate cells with multiple guides just as multiple
         anno_total_guide=[]
         anno_singles_guide=[]
-        cell2guide=adata_here.obsm[pref+'.cell2guide']
-        if pref+'.cell2gene' in adata_here.obsm:
-            cell2gene=adata_here.obsm[pref+'.cell2gene']
+        cell2guide=adata_here.obsm[pref+'cell2guide']
+        if pref+'cell2gene' in adata_here.obsm:
+            cell2gene=adata_here.obsm[pref+'cell2gene']
             anno_total_gene=[]
             anno_singles_gene=[]
         for i in range(adata_here.n_obs):
@@ -118,42 +139,42 @@ def perturb2obs(adata_here,pref='perturb',copy=False):
             anno_singles_gene.append(anno_singles_here_gene)
         
         
-        adata_here.obs[pref+'.guide.total']=anno_total_guide
-        adata_here.obs[pref+'.guide']=anno_singles_guide
-        adata_here.obs[pref+'.gene.total']=anno_total_gene
-        adata_here.obs[pref+'.gene']=anno_singles_gene
+        adata_here.obs[pref+'guide.total']=anno_total_guide
+        adata_here.obs[pref+'guide']=anno_singles_guide
+        adata_here.obs[pref+'gene.total']=anno_total_gene
+        adata_here.obs[pref+'gene']=anno_singles_gene
         if copy:
             return(adata_here)
                 
 
-def annotate_controls(adata_here,control_guides=['unperturbed'],pref='perturb',copy=False):
+def annotate_controls(adata_here,control_guides=['unperturbed'],pref='',copy=False):
     #if no controls are specified, unperturbed is the control
     
     if copy: adata_here = adata_here.copy()
 
-    if pref+'.guide.total' not in adata_here.obs:
-        print('ERROR: '+pref+'.guide.total'+' was not found in adata.obs. Please first run perturb.perturb2obs')
+    if pref+'guide.total' not in adata_here.obs:
+        print('ERROR: '+pref+'guide.total'+' was not found in adata.obs. Please first run perturb.perturb2obs')
         exit
         
     control_anno=[]
     for i in range(adata_here.n_obs):
-        guide=adata_here.obs[pref+'.guide.total'][i]
+        guide=adata_here.obs[pref+'guide.total'][i]
         if guide in control_guides:
             control_status='control'
         else:
             control_status='not control'
         control_anno.append(control_status)
         
-    adata_here.obs[pref+'.control']=control_anno
+    adata_here.obs[pref+'control']=control_anno
 
     if copy:
         return(adata_here)
 
-def remove_guides_from_gene_names(adata_here,pref='perturb'):
-    if pref+'.cell2guide' not in adata_here.obsm:
-        print('ERROR: '+pref+'.cell2guide'+' was not found in adata.obsm. Please first run perturb.read_perturbations_csv')
+def remove_guides_from_gene_names(adata_here,pref=''):
+    if pref+'cell2guide' not in adata_here.obsm:
+        print('ERROR: '+pref+'cell2guide'+' was not found in adata.obsm. Please first run perturb.read_perturbations_csv')
         exit
-    guides=adata_here.obsm[pref+'.cell2guide'].columns
+    guides=adata_here.obsm[pref+'cell2guide'].columns
     guides_in_adata_varnames=list(set(adata_here.var_names).intersection(set(guides)))
     print('filtering out',len(guides_in_adata_varnames),'guide names from the expression matrix')
     if len(guides_in_adata_varnames)>0:
@@ -165,21 +186,21 @@ def remove_guides_from_gene_names(adata_here,pref='perturb'):
 
 #========= perturbation stats
  
-def perturbations_per_cell(adata_here,pref='perturb',level='guide',copy=False):
+def perturbations_per_cell(adata_here,pref='',level='guide',copy=False):
     
     if copy: adata_here = adata_here.copy()
     
-    if pref+'.cell2'+level not in adata_here.obsm:
-        print('ERROR: '+pref+'.cell2'+level+' was not found in adata.obsm. Please first run perturb.read_perturbations_csv')
+    if pref+'cell2'+level not in adata_here.obsm:
+        print('ERROR: '+pref+'cell2'+level+' was not found in adata.obsm. Please first run perturb.read_perturbations_csv')
         exit
-    pe_df=adata_here.obsm[pref+'.cell2'+level]>0.0
+    pe_df=adata_here.obsm[pref+'cell2'+level]>0.0
     perturbations_per_cell_val=pe_df.sum(axis=1)
-    adata_here.obs[pref+'.'+level+'.perturbations_per_cell']=perturbations_per_cell_val
+    adata_here.obs[pref+level+'.perturbations_per_cell']=perturbations_per_cell_val
     
     if copy:
         return(adata_here)
 
-def cells_per_perturbation(adata_here,level='guide',pref='perturb',copy=False):
+def cells_per_perturbation(adata_here,level='guide',pref='',copy=False):
 
     """Counts the number of cells for each perturbation.
 
@@ -193,41 +214,41 @@ def cells_per_perturbation(adata_here,level='guide',pref='perturb',copy=False):
     
     if copy: adata_here = adata_here.copy()
 
-    if pref+'.cell2'+level not in adata_here.obsm:
-        print('ERROR: '+pref+'.cell2'+level+' was not found in adata.obsm. Please first run perturb.read_perturbations_csv')
+    if pref+'cell2'+level not in adata_here.obsm:
+        print('ERROR: '+pref+'cell2'+level+' was not found in adata.obsm. Please first run perturb.read_perturbations_csv')
         exit
-    pe_df=adata_here.obsm[pref+'.cell2'+level]>0.0
+    pe_df=adata_here.obsm[pref+'cell2'+level]>0.0
     
     cells_per_perturbation_val=pe_df.sum(axis=0)
-    adata_here.uns[pref+'.'+level+'.cells_per_perturbation']=pd.DataFrame(cells_per_perturbation_val,index=cells_per_perturbation_val.index) 
-    adata_here.uns[pref+'.'+level+'.cells_per_perturbation'].columns=['Number of cells']
+    adata_here.uns[pref+level+'.cells_per_perturbation']=pd.DataFrame(cells_per_perturbation_val,index=cells_per_perturbation_val.index) 
+    adata_here.uns[pref+level+'.cells_per_perturbation'].columns=['Number of cells']
     #also restrict to singly infected cells
     perturbations_per_cell_val=pe_df.sum(axis=1)
     singles_df=pe_df.loc[perturbations_per_cell_val==1,:]
     cells_per_perturbation_val_singles=singles_df.sum(axis=0)
-    adata_here.uns[pref+'.'+level+'.cells_per_perturbation.singly_infected']=pd.DataFrame(cells_per_perturbation_val_singles,index=cells_per_perturbation_val_singles.index)
-    adata_here.uns[pref+'.'+level+'.cells_per_perturbation.singly_infected'].columns=['Number of cells']
+    adata_here.uns[pref+level+'.cells_per_perturbation.singly_infected']=pd.DataFrame(cells_per_perturbation_val_singles,index=cells_per_perturbation_val_singles.index)
+    adata_here.uns[pref+level+'.cells_per_perturbation.singly_infected'].columns=['Number of cells']
     
     if copy:
         return(adata_here)
 
 #this method taken from Dixit et al., 2016, https://github.com/asncd/MIMOSCA/blob/master/GBC_CBC_pairing/fit_moi.ipynb
-def moi(adata_here,pref='perturb',level='guide',gridsize=100,maxk=10):
+def moi(adata_here,pref='',level='guide',gridsize=100,maxk=10):
     
     import scipy
     from numpy import unravel_index
     
     print('Computing MOI and detection probability using code from Dixit et al., 2016')
 
-    if pref+'.'+level+'.perturbations_per_cell' not in adata.obs:
-        print('ERROR: missing adata.obs['+pref+'.'+level+'.perturbations_per_cell], please run perturb.pp.perturbations_per_cell first')
+    if pref+level+'.perturbations_per_cell' not in adata.obs:
+        print('ERROR: missing adata.obs['+pref+level+'.perturbations_per_cell], please run perturb.pp.perturbations_per_cell first')
         exit
-    if pref+'.'+level+'.cells_per_perturbation' not in adata.uns:
-        print('ERROR: missing adata.obs['+pref+'.'+level+'.cells_per_perturbation], please run perturb.pp.cells_per_perturbation first')
+    if pref+level+'.cells_per_perturbation' not in adata.uns:
+        print('ERROR: missing adata.obs['+pref+level+'.cells_per_perturbation], please run perturb.pp.cells_per_perturbation first')
         exit
         
-    moi_dist=np.array(list(adata_here.obs[pref+'.'+level+'.perturbations_per_cell']))
-    num_virus=adata_here.uns[pref+'.'+level+'.cells_per_perturbation'].shape[0]
+    moi_dist=np.array(list(adata_here.obs[pref+level+'.perturbations_per_cell']))
+    num_virus=adata_here.uns[pref+level+'.cells_per_perturbation'].shape[0]
 
     n,bins=np.histogram(moi_dist,range(int(maxk)+1))
 

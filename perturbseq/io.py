@@ -2,75 +2,69 @@ import numpy as np
 import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
+import scanpy as sc
 
-def read_perturbations_csv(my_adata,
-                           cell2guide_csv,
-                           guide2gene_csv = None,
-                           pref = 'perturb',
-                           sep = '\t',
-                           copy = False):
-
-    """Read in which perturbations were present in which cell.
-
-    Args
-    ----
-    my_adata: AnnData
-        adata
-    cell2guide_csv: str
-        csv file where each line is a cell and each column in a guide. It has a 1 if the guide is present in the cell and a 0 otherwise.                                                             
-    guide2gene_csv: str
-        (optional) a csv file mapping which gene is targeted by each guide. This is useful for analyses aggregating across all guides of a gene.                                                     
-    pref: str 
-        (default: "perturb"): (optional) a prefix to add to annotations. This is meant to allow the user to have potentially multiple modes of perturbations allowed.                                           
-    sep: str
-        (default: "\\t"): (optional) separator in the csv file.                                        
-    copy: bool
-        (default: False): (optional) whether to return a copy of the annotation data                  
-              
+def read_perturbations_csv(adata_here,cell2guide_csv,guide2gene_csv=None,pref='',
+                           sep='\t',copy=False):
     
-    Returns
-    -------
-    None
-        adds the to adata (or copy thereof) the following fields:
-
-            adata.obsm[pref+'.cell2guide']
-
+    """
+    Read in which perturbations were present in which cell.                                                
+                                                                                                              
+    Args                                                                                                      
+    ----                                                                                                      
+    my_adata: AnnData                                                                                         
+        adata                                                                                                 
+    cell2guide_csv: str                                                                                       
+        csv file where each line is a cell and each column in a guide. It has a 1 if the guide is present in the cell and a 0 otherwise.                                                                                   
+    guide2gene_csv: str                                                                                       
+        (optional) a csv file mapping which gene is targeted by each guide. This is useful for analyses aggregating across all guides of a gene.                                                                           
+    pref: str                                                                                                 
+        (default: "perturb"): (optional) a prefix to add to annotations. This is meant to allow the user to have potentially multiple modes of perturbations allowed.                                                      
+    sep: str                                                                                                  
+        (default: "\\t"): (optional) separator in the csv file.                                               
+    copy: bool                                                                                                
+        (default: False): (optional) whether to return a copy of the annotation data                          
+                            
+    Returns                                                                                                   
+    -------                                                                                                   
+    None                                                                                                      
+        adds the to adata (or copy thereof) the following fields:                                             
+                                                                                                              
+            adata.obsm[pref+'.cell2guide']                                                                    
+                                                                                                              
             adata.obsm[pref+'.cell2gene'] 
-        
     """
 
-    import pandas as pd
-
-    if copy: my_adata = my_adata.copy()
+    if copy: adata_here = adata_here.copy()
     
     #read cell2guide
-    cell2guide=pd.read_csv(cell2guide_csv,sep=sep,index_col=None)
+    cell2guide=pd.read_csv(cell2guide_csv,sep=sep)
     cell2guide.index=cell2guide['cell']
         
     #check that the annotated cells have a good overlap with the adata
     cells_annotated=list(set(cell2guide['cell']))
-    cells_annotated_in_adata=list(set(cells_annotated).intersection(set(my_adata.obs_names)))
-    percent_cells_annotated_in_adata=100*round(len(cells_annotated_in_adata)/my_adata.n_obs,2)
-    print('adata cells:',my_adata.n_obs)
-    print('annotated cells:',len(cells_annotated),'representing',percent_cells_annotated_in_adata,'percent of adata')
+    cells_annotated_in_adata=list(set(cells_annotated).intersection(set(adata_here.obs_names)))
+    percent_cells_annotated_in_adata=100*round(len(cells_annotated_in_adata)/adata_here.n_obs,2)
     
+    print('annotated cells:',len(cells_annotated))
+    print('adata cells:',adata_here.n_obs,'|',percent_cells_annotated_in_adata,'percent annotated')
+    if len(cells_annotated_in_adata)==0:
+        print('======\nERROR: no cells in your adata were annotated. Check that the cell names match between adata and your cell2guide file')
+        return(None)
+
     #assign the guides to the cells in adata
     guides=list(set(cell2guide.columns).difference(set(['cell'])))
     cell2guide_for_adata=pd.DataFrame(0.0,
-                      index=my_adata.obs_names,
+                      index=adata_here.obs_names,
                       columns=guides)
-    cell2guide_for_adata.loc[cells_annotated_in_adata,guides]=cell2guide.loc[cells_annotated_in_adata,guides] 
-
-    my_adata.obsm[pref+'.cell2guide']=pd.DataFrame(cell2guide_for_adata,dtype=float)
-    my_adata.obsm[pref+'.cell2gene']=pd.DataFrame(cell2guide_for_adata,dtype=float)
+    cell2guide_for_adata.loc[cells_annotated_in_adata,guides]=cell2guide.loc[cells_annotated_in_adata,guides]
     
-    #if provided a guide->gene file, save that in the adata object, as another obsm.
-    #if it's not provided, consider each guide as a separate gene (see above lines)
+    #if provided a guide->gene file, save that in the adata object, as another obsm
     if guide2gene_csv!=None:
         guide2gene=pd.read_csv(guide2gene_csv,sep=sep)
         genes=list(set(guide2gene['gene']))
         cell2gene_for_adata=pd.DataFrame(0.0,
-                      index=my_adata.obs_names,
+                      index=adata_here.obs_names,
                       columns=genes)
         #for each gene, check if at least one of the guides is present
         for gene in genes:
@@ -78,10 +72,79 @@ def read_perturbations_csv(my_adata,
             guides_per_gene=list(set(guides_per_gene_init).intersection(set(guides)))
             if len(guides_per_gene)>0:
                 cell2gene_for_adata.loc[cells_annotated_in_adata,gene]=cell2guide_for_adata.loc[cells_annotated_in_adata,guides_per_gene].sum(axis=1)
-        my_adata.obsm[pref+'.cell2gene']=pd.DataFrame(cell2gene_for_adata,dtype=float)
+                
+            
+    #and one obs for guide, one for gene. one compact (says "multiple"), and one with the full name
+    guide_sum=cell2guide_for_adata.sum(axis=1)
+    guide_anno_long=[]
+    guide_anno_compact=[]
+    unassigned_vector=[]
+    for i in range(adata_here.n_obs):
+        x=cell2guide_for_adata.iloc[i,]
+        guides_cell=list(x.loc[x>0].index)
+        guides_cell.sort()
+        guides_cell_str=','.join(guides_cell)
+        #print(guides_cell_str)
+        if len(guides_cell)==0:
+            guide_anno_compact_here='unassigned'
+            guide_anno_long_here='unassigned'
+        if len(guides_cell)==1:
+            guide_anno_compact_here=guides_cell_str
+            guide_anno_long_here=guides_cell_str
+        if len(guides_cell)>1:
+            guide_anno_compact_here='multiple'
+            guide_anno_long_here=guides_cell_str
+        guide_anno_long.append(guide_anno_long_here)
+        guide_anno_compact.append(guide_anno_compact_here)
+        if guide_anno_compact_here=='unassigned':
+            unassigned_vector.append(1.0)
+        else:
+            unassigned_vector.append(0.0)
 
+    adata_here.obs[pref+'guide']=guide_anno_long
+    adata_here.obs[pref+'guide.compact']=guide_anno_compact
+    
+    
+    if guide2gene_csv!=None:
+        gene_sum=cell2gene_for_adata.sum(axis=1)
+        gene_anno_long=[]
+        gene_anno_compact=[]
+        for i in range(adata_here.n_obs):
+            x=cell2gene_for_adata.iloc[i,]
+            genes_cell=list(x.loc[x>0].index)
+            genes_cell.sort()
+            genes_cell_str=','.join(genes_cell)
+            #print(guides_cell_str)
+            if len(genes_cell)==0:
+                gene_anno_compact_here='unassigned'
+                gene_anno_long_here='unassigned'
+            if len(genes_cell)==1:
+                gene_anno_compact_here=genes_cell_str
+                gene_anno_long_here=genes_cell_str
+            if len(genes_cell)>1:
+                gene_anno_compact_here='multiple'
+                gene_anno_long_here=genes_cell_str
+            gene_anno_long.append(gene_anno_long_here)
+            gene_anno_compact.append(gene_anno_compact_here)
+
+        adata_here.obs[pref+'gene']=gene_anno_long
+        adata_here.obs[pref+'gene.compact']=gene_anno_compact
+    
+    #make obs for each perturbation count                                                                                                                                
+    for guide in guides:
+        adata_here.obs[pref+guide]=1.0*(cell2guide_for_adata.loc[:,guide]>0)
+    #also make one for unassigned
+    adata_here.obs['unassigned']=unassigned_vector
+    if guide2gene_csv!=None:
+        for gene in genes:
+            adata_here.obs[pref+'gene.'+gene]=1.0*(cell2gene_for_adata.loc[:,gene]>0)
+
+
+    adata_here.obsm[pref+'cell2guide']=cell2guide_for_adata
+    if guide2gene_csv!=None:
+        adata_here.obsm[pref+'cell2gene']=cell2gene_for_adata
     if copy:
-        return(my_adata)
+        return(adata_here)
 
 
 def compute_TPT(gbcs_dataset):
