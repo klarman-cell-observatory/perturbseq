@@ -2,6 +2,198 @@ import numpy as np
 import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
+from perturbseq.util import display_progress
+
+def _get_perturbations(adata_here,
+                     perturbations_obs='guide'):
+    
+    #get the list of perturbations
+    perturbations_list=list(set(adata_here.obs[perturbations_obs]).intersection(set(list(adata_here.obs.columns))).difference(['unassigned']))
+    
+    perturbations_list.sort()
+    return(perturbations_list)
+
+def get_perturbations(adata_here,
+                     perturbations_obs='guide',
+                     copy=False):
+    
+    if copy: adata_here = adata_here.copy()
+        
+    #check if perturbations_obs in adata
+    try:
+        assert perturbations_obs in adata_here.obs.columns
+    except AssertionError:
+            print('ERROR: "'+perturbations_obs+'" is not in adata.obs.')
+            return
+        
+    #get perturbations
+    if 'PS.'+perturbations_obs+'.list' in adata_here.uns:
+        print('WARNING: Over-writing '+'"PS.'+perturbations_obs+'.list"')
+    adata_here.uns['PS.'+perturbations_obs+'.list']=_get_perturbations(adata_here,
+                                                                       perturbations_obs=perturbations_obs)
+    
+    if copy:
+        return(adata_here)
+
+
+def downsample_counts(adata_here,
+                      downsampling_prob,
+                      my_rng=np.random.RandomState(1234)):
+    import time
+    from scipy.sparse import csr_matrix
+    from scipy.sparse import coo_matrix
+    
+    if downsampling_prob>1 or downsampling_prob<0:
+        print('WARNING: You provided a downsampling probability outside the range [0,1].')
+        print('No downsampling will be performed')
+        return()
+    
+    if downsampling_prob==1.0:
+        print('WARNING: You provided a downsampling probability equal to 1. No downsampling will be performed')
+        return()
+    
+    #quickly loop through the sparse matrix of counts
+    downsampled_vals=[]
+    m=adata_here.X
+    nonzeros=m.nonzero()
+    nonzero_r=nonzeros[0]
+    nonzero_c=nonzeros[1]
+    start = time.time()
+    
+    m.eliminate_zeros()
+    original_vals=m.data
+    num_elts=len(original_vals)
+    
+    m_downsampled_data=[]
+    
+    print('median reads in original dataset',
+         np.median(np.array(m.sum(axis=1))))
+
+    elt=0
+    while elt<num_elts:
+        if elt%5000000==0:
+            end = time.time()
+            print(int(100*elt/num_elts),'% done')
+            start = time.time()
+            
+        m_downsampled_data.append(my_rng.binomial(original_vals[elt],
+                                                 downsampling_prob,1)[0])
+        elt+=1
+    print(int(100*elt/num_elts),'% done')
+    
+    downsampled=csr_matrix((m_downsampled_data, 
+                            m.indices, 
+                            m.indptr), 
+                           dtype=float,shape=m.shape)
+    
+    print('median reads in downsampled dataset',
+          np.median(np.array(downsampled.sum(axis=1))))
+    return(downsampled)
+
+#preparing for linear model
+#==========================
+def check_id_list(perturbation_list,adata_here,list_type):
+    found_perturbations=[]
+    count_perturbations=0
+    for perturbation in perturbation_list:
+        if perturbation not in adata_here.obs:
+            print('Warning: '+perturbation+' is not in the provided dataset and will be ignored')
+        else:
+            count_perturbations+=1
+            found_perturbations.append(perturbation)
+    print('Found '+str(count_perturbations)+'/'+str(len(perturbation_list))+' '+list_type)
+
+    return(found_perturbations)
+
+def multiple_annotations_to_design_matrix(adata_here,annotation_names,
+                                          binarize=True):
+
+    #say that we expect numerical data here (0/1)                                                                                                                  
+    keep_anno_names=[]
+    for i in range(len(annotation_names)):
+        anno=annotation_names[i]
+        if anno not in adata_here.obs:
+            print('WARNING: '+anno+' not in the available annotations. Please add it and re-run')
+        else:
+            keep_anno_names.append(anno)
+
+    annotations=keep_anno_names
+    cells=list(adata_here.obs_names)
+    design_matrix=np.zeros((len(cells),len(annotations)))
+
+    for cell_idx in range(len(adata_here.obs_names)):
+
+        if cell_idx%1000==0:
+            display_progress(cell_idx,len(adata_here.obs_names))
+
+        for anno_idx in range(len(annotations)):
+            anno=annotations[anno_idx]
+            design_matrix[cell_idx,anno_idx]=adata_here.obs[anno][cell_idx]
+    display_progress(1,1)
+    print('\n')
+    design_matrix_df=pd.DataFrame(design_matrix)
+    if binarize:
+        design_matrix_df=(design_matrix_df>0.0)*1.0
+    design_matrix_df.index=cells
+    design_matrix_df.columns=annotations
+
+    #go through all the cells, and figure out what combinations of perturbations there are 
+    #add these to the design matrix
+    design_matrix_df_uniq=design_matrix_df.drop_duplicates()
+    column_names=design_matrix_df_uniq.columns
+    interaction_terms=[]
+    for i in range(design_matrix_df_uniq.shape[0]):
+        current_columns=[]
+        for j in range(len(column_names)):
+            if design_matrix_df_uniq.iloc[i,j]>0:
+                current_columns.append(column_names[j])
+        if len(current_columns)>1:
+            current_columns.sort()
+            current_columns_join=','.join(current_columns)
+            interaction_terms.append(current_columns_join)
+    #add columns with the interaction terms
+    for interaction_term in interaction_terms:
+        interaction_columns=interaction_term.split(',')
+        values=design_matrix_df.loc[:,interaction_columns].prod(axis=1)
+        import copy
+        design_matrix_df[interaction_term]=copy.deepcopy(values)
+
+    return(design_matrix_df)
+
+
+def split_train_valid_test(adata_here,training_proportion=0.6,validation_proportion=0.2,test_proportion=0.2,rng=None,copy=False):
+    assert training_proportion<=1.0
+    assert validation_proportion<=1.0
+    assert test_proportion<=1.0
+    assert (training_proportion+validation_proportion+test_proportion)<=1.0
+    
+    if copy: adata_here = adata_here.copy()
+    
+    num_examples=adata_here.n_obs
+
+    if rng==None:
+        idx_shuff=np.random.RandomState(seed=77).permutation(range(num_examples))
+    else:
+        idx_shuff=rng.permutation(range(num_examples))
+
+    training_threshold=int(num_examples*training_proportion)
+    validation_threshold=int(num_examples*(training_proportion+validation_proportion))
+
+    training=range(training_threshold)
+    validation=range(training_threshold,min(validation_threshold,num_examples))
+    test=range(validation_threshold,num_examples)
+    
+    #make obs with train, validation, test
+    train_test_df=pd.DataFrame({'cell':adata_here.obs_names,
+                               'train_test':'train'},index=adata_here.obs_names)
+    train_test_df=train_test_df.iloc[idx_shuff,:]
+    train_test_df.iloc[training,1]='train'
+    train_test_df.iloc[validation,1]='valid'
+    train_test_df.iloc[test,1]='test'
+    adata_here.obs['train_test']=train_test_df.loc[adata_here.obs_names,'train_test']
+
+    if copy:
+        return(adata_here)
 
 def filter_multiplets(adata_here,pref='',level='guide',keep_unassigned=True,
                            copy=False):
@@ -70,19 +262,21 @@ def compute_TPT(gbcs_dataset):
     to_return=to_return.reset_index(drop=True)
     return(to_return)
 
-def subsample_cells(adata,num_cells,grouping_variable):
-    import random
+def subsample_cells(adata_here,num_cells,grouping_variable,
+                   my_rng=np.random.RandomState(1234)):
+
+    import copy
     cells_keep=[]
-    groups=list(set(adata.obs[grouping_variable]))
+    groups=list(set(adata_here.obs[grouping_variable]))
     for group in groups:
-        group_cells=list(adata.obs_names[adata.obs[grouping_variable]==group])
+        group_cells=list(adata_here.obs_names[adata_here.obs[grouping_variable]==group])
         if len(group_cells)<num_cells:
             print('warning: fewer cells than needed for '+group+'. skipping subsampling')
         else:
-            group_cells=random.sample(group_cells,num_cells)
+            group_cells=my_rng.choice(group_cells,num_cells,replace=False)
         for cell in group_cells:
             cells_keep.append(cell)
-    return(adata[cells_keep,:])
+    return(adata_here[cells_keep,:])
 
 def perturb2obs(adata_here,pref='',copy=False):
     if pref+'cell2guide' not in adata_here.obsm:
@@ -147,18 +341,18 @@ def perturb2obs(adata_here,pref='',copy=False):
             return(adata_here)
                 
 
-def annotate_controls(adata_here,control_guides=['unperturbed'],pref='',copy=False):
-    #if no controls are specified, unperturbed is the control
+def annotate_controls(adata_here,control_guides=[],pref='',copy=False):
+    #if no controls are specified, nothing gets assigned
     
     if copy: adata_here = adata_here.copy()
 
-    if pref+'guide.total' not in adata_here.obs:
-        print('ERROR: '+pref+'guide.total'+' was not found in adata.obs. Please first run perturb.perturb2obs')
+    if pref+'guide' not in adata_here.obs:
+        print('ERROR: '+pref+'guide'+' was not found in adata.obs. Please first perturb.io.run read_perturbations_csv')
         exit
         
     control_anno=[]
     for i in range(adata_here.n_obs):
-        guide=adata_here.obs[pref+'guide.total'][i]
+        guide=adata_here.obs[pref+'guide'][i]
         if guide in control_guides:
             control_status='control'
         else:
@@ -170,19 +364,20 @@ def annotate_controls(adata_here,control_guides=['unperturbed'],pref='',copy=Fal
     if copy:
         return(adata_here)
 
-def remove_guides_from_gene_names(adata_here,pref=''):
-    if pref+'cell2guide' not in adata_here.obsm:
-        print('ERROR: '+pref+'cell2guide'+' was not found in adata.obsm. Please first run perturb.read_perturbations_csv')
-        exit
-    guides=adata_here.obsm[pref+'cell2guide'].columns
+def remove_guides_from_gene_names(adata_here,pref='',copy=False):
+
+    if copy: adata_here = adata_here.copy()
+
+    guides=list(set(adata_here.obs['guide']).difference(['unassigned','multiple']))
     guides_in_adata_varnames=list(set(adata_here.var_names).intersection(set(guides)))
     print('filtering out',len(guides_in_adata_varnames),'guide names from the expression matrix')
     if len(guides_in_adata_varnames)>0:
         remaining_varnames=list(set(adata_here.var_names).difference(set(guides_in_adata_varnames)))
-        adata_out=adata_here[:,remaining_varnames]
+        adata_here._inplace_subset_var(remaining_varnames)
     else:
-        adata_out=adata_here
-    return(adata_out)
+        adata_here=adata_here
+    if copy:
+        return(adata_here)
 
 #========= perturbation stats
  

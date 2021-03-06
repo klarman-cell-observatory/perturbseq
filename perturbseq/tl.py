@@ -213,7 +213,7 @@ def gene_programs_and_perturbation_modules(adata_here,input_type='bulk',perturba
 
 #==================================================================
 
-def bulk(adata_here,grouping_variable,by_batch=False,return_matrix=False):
+def bulk(adata_here,grouping_variable,by_batch=False,return_matrix=False,use_raw=False):
     
     """Compute an in silico bulk set of expression profiles, based on cell labels
  
@@ -246,13 +246,19 @@ def bulk(adata_here,grouping_variable,by_batch=False,return_matrix=False):
                 profile_list.append(profile)
         adata_here.obs['profile']=profile_list
         profiles=profile_list
-        
-    genes=adata_here.var_names
+    
+    if not use_raw:
+        genes=adata_here.var_names
+    else:
+        genes=adata_here.raw.var_names
     profile_matrix=np.zeros((len(profiles),len(genes)))
     for profile_idx in range(len(profiles)):
         profile=profiles[profile_idx]
         cells_with_profile=list(adata_here.obs_names[adata_here.obs['profile']==profile])
-        data_profile=adata_here[cells_with_profile,:].X.toarray()
+        if not use_raw:
+            data_profile=adata_here[cells_with_profile,:].X.toarray()
+        else:
+            data_profile=adata_here.raw[cells_with_profile,:].X
         profile_matrix[profile_idx,:]=data_profile.mean(axis=0)
     profile_matrix_df=pd.DataFrame(profile_matrix)
     profile_matrix_df.index=profiles
