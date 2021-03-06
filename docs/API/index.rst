@@ -13,7 +13,7 @@ Read in data: `io`
 Read in guides.
 
 .. module:: perturbseq.io
-.. currentmodule:: perturbseq
+.. currentmodule:: perturbseq.io
 
 .. autosummary::
    :toctree: .
@@ -24,7 +24,7 @@ Preprocessing: `pp`
 -------------------
 
 .. module:: perturbseq.pp
-.. currentmodule:: perturbseq
+.. currentmodule:: perturbseq.pp
 
 .. autosummary::
    :toctree: .
