@@ -263,7 +263,7 @@ def compute_TPT(gbcs_dataset):
     return(to_return)
 
 def subsample_cells(adata_here,num_cells,grouping_variable,
-                   my_rng=np.random.RandomState(1234)):
+                   rng=np.random.RandomState(1234)):
 
     import copy
     cells_keep=[]
@@ -273,7 +273,7 @@ def subsample_cells(adata_here,num_cells,grouping_variable,
         if len(group_cells)<num_cells:
             print('warning: fewer cells than needed for '+group+'. skipping subsampling')
         else:
-            group_cells=my_rng.choice(group_cells,num_cells,replace=False)
+            group_cells=rng.choice(group_cells,num_cells,replace=False)
         for cell in group_cells:
             cells_keep.append(cell)
     return(adata_here[cells_keep,:])
