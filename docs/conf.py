@@ -20,7 +20,6 @@ from datetime import datetime
 
 
 HERE=Path(__file__).parent
-sys.path.insert(0, str(HERE.parent))
 on_rtd=os.environ.get('READTHEDOCS') == True
 sys.path.insert(0, str(HERE.parent))
 print(sys.path)
