@@ -8,35 +8,49 @@ def read_perturbations_csv(adata_here,cell2guide_csv,guide2gene_csv=None,pref=''
                            sep='\t',copy=False):
 
     
-    """                                                                                                          
-    Read in which perturbations were present in which cell.                                                      
-                                                                                                                 
-    Args                                                                                                         
-    ----                                                                                                         
-    my_adata: AnnData                                                                                            
-        adata                                                                                                 
-    cell2guide_csv: str                                                                                          
-        csv file where each line is a cell and each column in a guide. It has a 1 if the guide is present in the 
-cell and a 0 otherwise.                                                                                          
-    guide2gene_csv: str                                                                                          
-        (optional) a csv file mapping which gene is targeted by each guide. This is useful for analyses aggregati
-ng across all guides of a gene.                                                                                  
-    pref: str                                                                                                    
-        (default: "perturb"): (optional) a prefix to add to annotations. This is meant to allow the user to have 
-potentially multiple modes of perturbations allowed.                                                             
-    sep: str                                                                                                     
-        (default: "\\t"): (optional) separator in the csv file.                                                  
-    copy: bool                                                                                                   
-        (default: False): (optional) whether to return a copy of the annotation data                             
-                                                                                                                 
-    Returns                                                                                                      
-    -------                                                                                                      
-    None                                                                                                         
-        adds the to adata (or copy thereof) the following fields:                                                
-                                                                                                                 
-            adata.obsm[pref+'.cell2guide']                                                                       
-                                                                                                                
-            adata.obsm[pref+'.cell2gene']                                                                        
+    """                                                                                  
+    Read in which perturbations were present in which cell.                              
+                   
+                                                                                     
+    Args                                                                                 
+    ----                                                                                 
+    my_adata: AnnData                                                                    
+    adata                                                                                
+    cell2guide_csv: str                                                                  
+                        
+         csv file where each line is a cell and each column in a guide. It has a 1 if the
+ guide is present in the cell and a 0 otherwise.
+                                                                                          
+    guide2gene_csv: str                                                                  
+                        
+        (optional) a csv file mapping which gene is targeted by each guide. This is useful
+ for analyses aggregating across all guides of a gene.                                   
+                                               
+    pref: str                                                                            
+                        
+        (default: "perturb"): (optional) a prefix to add to annotations. This is meant to
+ allow the user to have potentially multiple modes of perturbations allowed.             
+                                                
+    sep: str                                                                             
+                        
+        (default: "\\t"): (optional) separator in the csv file.                          
+                        
+    copy: bool                                                                           
+                        
+        (default: False): (optional) whether to return a copy of the annotation data     
+                        
+                        
+                                                                                         
+    Returns                                                                              
+    -------                                                                              
+    None                                                                                 
+                        
+    adds the to adata (or copy thereof) the following fields:                            
+    
+         adata.obsm[pref+'.cell2guide']                                                  
+    
+         adata.obsm[pref+'.cell2gene']                                                
+                        
     """
     import pandas as pd
 
