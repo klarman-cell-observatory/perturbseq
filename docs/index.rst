@@ -3,24 +3,37 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Import perturbseq as::
 
-   import perturbseq as perturb   
 
 Perturbseq analysis package
 ======================================
 
 Welcome!
 
-This package implements functionality for the analysis of Perturb-seq data.
-
 .. toctree::
    :maxdepth: 2
    :hidden:
 
    API/index
-   Install
-   Examples
 
+API
+===
 
+Preprocessing: `pp`
+-------------------
+Cells per perturbation, etc.
 
+Tools: `tl`
+-------------------
+Tools
+
+Plotting: `pl`
+-------------------
+Plotting things.
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`

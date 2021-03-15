@@ -1,3 +1,6 @@
+.. module:: perturbseq
+.. automodule::perturbseq
+   :noindex:
 
 API
 ===
@@ -12,6 +15,12 @@ You can import perturbseq as::
 
 Preprocessing: `pp`
 -------------------
+
+.. toctree::
+   :maxdepth: 2
+   :hidden:
+
+   API/index
 
 .. module:: perturbseq.pp
 .. currentmodule:: perturbseq
