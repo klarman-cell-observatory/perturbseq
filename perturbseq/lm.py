@@ -6,7 +6,7 @@ import scanpy as sc
 import seaborn as sns
 import copy
 from perturbseq.pp import check_id_list,multiple_annotations_to_design_matrix,split_train_valid_test
-import mimosca 
+#import mimosca 
 
 def make_X_y_covariates(adata_here,
                         model_name='linear_model',
