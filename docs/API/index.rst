@@ -19,8 +19,8 @@ Preprocessing: `pp`
 .. autosummary::
    :toctree: .
 
-   perturbseq.pp.subsample_cells
-   perturbseq.pp.cells_per_perturbation
+   pp.subsample_cells
+   pp.cells_per_perturbation
 
 Tools: `tl`
 -------------------
@@ -31,5 +31,5 @@ Tools: `tl`
 .. autosummary::
    :toctree: .
 
-   perturbseq.tl.moi
+   tl.moi
 
