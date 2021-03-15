@@ -4,4 +4,5 @@ sphinx-autodoc-typehints
 pandas>=0.24.2
 seaborn>=0.10.1
 scipy==1.4.1
+scanpy>=1.5.1
 typing_extensions; python_version < '3.6'
