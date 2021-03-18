@@ -20,11 +20,16 @@ Preprocessing: `pp`
    :toctree: .
 
    pp.get_perturbations
+
+
    pp.subsample_cells
+   pp.downsample_counts
+
    pp.cells_per_perturbation
 
-   pp.bulk_obs
 
+   pp.obs_mean
+   
 
 
 Tools: `tl`

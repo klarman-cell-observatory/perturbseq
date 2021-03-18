@@ -4,8 +4,12 @@ import matplotlib
 import matplotlib.pyplot as plt
 from perturbseq.util import display_progress
 
-def bulk_obs(adata_here,grouping_variable,
-             obs,pref='obs',copy=False):
+def obs_mean(adata_here,grouping_variable,
+             obs,outpref='obs_mean',copy=False):
+
+    """Compute the mean of an obs across pre-defined groups
+    
+    """
     
     if grouping_variable not in adata_here.obs.columns:
         print("ERROR: Variable '"+grouping_variable+"' not in adata.obs")
