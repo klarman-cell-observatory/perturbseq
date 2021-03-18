@@ -19,13 +19,21 @@ Preprocessing: `pp`
 .. autosummary::
    :toctree: .
 
+   pp.compute_TPT
    pp.get_perturbations
    pp.perturb_overlap_obs
+   pp.annotate_controls
+
+.. module:: perturbseq.pp
+.. currentmodule:: perturbseq
+
+.. autosummary::
+   :toctree: .
 
    pp.subsample_cells
    pp.downsample_counts
 
-   pp.get_singly_perturbed
+   pp.subset_singly_perturbed
    pp.cells_per_perturbation
 
    

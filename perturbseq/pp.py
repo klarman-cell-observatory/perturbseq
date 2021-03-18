@@ -247,7 +247,7 @@ def split_train_valid_test(adata_here,
     return(train_test_df.loc[adata_here.obs_names,'train_valid_test'])
 
 
-def get_singly_perturbed(adata_here,pref='',level='guide',keep_unassigned=True,
+def subset_singly_perturbed(adata_here,perturbations_obs='guide',keep_unassigned=True,
                            copy=False):
 
     """Keep only cells with one perturbation
@@ -259,14 +259,13 @@ def get_singly_perturbed(adata_here,pref='',level='guide',keep_unassigned=True,
     if copy: adata_here = adata_here.copy()
         
     #===============
-    if pref+'guide.perturbations_per_cell' not in adata_here.obs:
-        perturb.pp.perturbations_per_cell(adata_here,level=level)
-    keep=adata_here.obs_names[adata_here.obs[pref+'guide.perturbations_per_cell']==1]
+    perturb.pp.perturbations_per_cell(adata_here,level=level)
+    keep=adata_here.obs_names[adata_here.obs['perturbs_per_cell.'+perturbations_obs]==1]
     if keep_unassigned:
-        unassigned=adata_here.obs_names[adata_here.obs[pref+'guide']=='unassigned']
-        keep=list(set(keep).union(set(unassigned)))  
-    adata_here._inplace_subset_obs(keep)
-    
+        unassigned=adata_here.obs_names[adata_here.obs[perturbations_obs]=='unassigned']
+        keep=list(set(keep).union(set(unassigned)))
+    if not copy:
+        adata_here._inplace_subset_obs(keep)
     #===============
         
     if copy:
@@ -274,11 +273,12 @@ def get_singly_perturbed(adata_here,pref='',level='guide',keep_unassigned=True,
 
 def compute_TPT(gbcs_dataset):
     
-    '''
+    """Compute transcript per transcript
+
     input: pandas data frame with the columns "cbc", "umi", "gbc", "r2" where every row is a read 
     output: pandas data frame with the columns "gbc", "cbc", "umi", "cbc-umi-r2-count", "cbc-umi-count", "TPT"
     NOTE: for the input, multiple reads corresponding to the same cbc-umi combination should be listed as separate lines!
-    '''
+    """
 
     import copy
     import re
@@ -321,6 +321,10 @@ def compute_TPT(gbcs_dataset):
 def subsample_cells(adata_here,num_cells,grouping_variable,
                    rng=np.random.RandomState(1234)):
 
+    """Subsample cells/perturbation
+
+    """
+
     import copy
     cells_keep=[]
     groups=list(set(adata_here.obs[grouping_variable]))
@@ -334,6 +338,7 @@ def subsample_cells(adata_here,num_cells,grouping_variable,
             cells_keep.append(cell)
     return(adata_here[cells_keep,:])
 
+#todo: work on it, or delete
 def perturb2obs(adata_here,pref='',copy=False):
     if pref+'cell2guide' not in adata_here.obsm:
         print('ERROR: '+pref+'cell2guide'+' was not found in adata.obsm. Please first run perturb.read_perturbations_csv')
@@ -397,7 +402,13 @@ def perturb2obs(adata_here,pref='',copy=False):
             return(adata_here)
                 
 
-def annotate_controls(adata_here,control_guides=[],pref='',copy=False):
+def annotate_controls(adata_here,perturbations_obs,control_guides=[],pref='',copy=False):
+    
+    """Make obs with control guides
+
+    Will be saved as adata.obs[pref+'control']
+    """
+
     #if no controls are specified, nothing gets assigned
     
     if copy: adata_here = adata_here.copy()
@@ -408,7 +419,7 @@ def annotate_controls(adata_here,control_guides=[],pref='',copy=False):
         
     control_anno=[]
     for i in range(adata_here.n_obs):
-        guide=adata_here.obs[pref+'guide'][i]
+        guide=adata_here.obs[perturbations_obs][i]
         if guide in control_guides:
             control_status='control'
         else:
