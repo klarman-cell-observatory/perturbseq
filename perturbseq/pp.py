@@ -4,6 +4,39 @@ import matplotlib
 import matplotlib.pyplot as plt
 from perturbseq.util import display_progress
 
+def bulk_obs(adata_here,grouping_variable,
+             obs,pref='obs',copy=False):
+    
+    if grouping_variable not in adata_here.obs.columns:
+        print("ERROR: Variable '"+grouping_variable+"' not in adata.obs")
+        return()
+    for obs_variable in obs:
+        if obs_variable not in adata_here.obs.columns:
+            print("ERROR: Variable '"+obs_variable+"' not in adata.obs")
+            return()
+            
+    
+    if copy: adata_here = adata_here.copy()
+        
+    #construct the profiles
+    import copy
+    profiles=list(set(adata_here.obs[grouping_variable]))
+    profile_obs=copy.deepcopy(adata_here.obs[grouping_variable])
+    
+    profile_matrix=np.zeros((len(profiles),len(obs)))
+    for profile_idx in range(len(profiles)):
+        profile=profiles[profile_idx]
+        cells_with_profile=list(adata_here.obs_names[profile_obs==profile])
+        data_profile=adata_here[cells_with_profile,:].obs.loc[:,obs]
+        profile_matrix[profile_idx,:]=data_profile.mean(axis=0)
+    profile_matrix_df=pd.DataFrame(profile_matrix)
+    profile_matrix_df.index=profiles
+    profile_matrix_df.columns=obs
+    adata_here.uns['bulk.'+pref]=profile_matrix_df
+        
+    if copy:
+        return(adata_here)
+
 def _get_perturbations(adata_here,
                      perturbations_obs='guide'):
     

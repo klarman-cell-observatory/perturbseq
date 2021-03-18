@@ -19,8 +19,13 @@ Preprocessing: `pp`
 .. autosummary::
    :toctree: .
 
+   pp.get_perturbations
    pp.subsample_cells
    pp.cells_per_perturbation
+
+   pp.bulk_obs
+
+
 
 Tools: `tl`
 -------------------
