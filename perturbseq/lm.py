@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import scanpy as sc
 import seaborn as sns
 import copy
-from perturbseq.pp import check_id_list,multiple_annotations_to_design_matrix,split_train_valid_test
+from perturbseq.pp import perturb_overlap_obs,multiple_annotations_to_design_matrix,split_train_valid_test
 #import mimosca 
 
 def make_X_y_covariates(adata_here,
@@ -24,7 +24,7 @@ def make_X_y_covariates(adata_here,
     if perturbation_list is None:
         perturbation_list=list(set(adata.obs['guide']).difference(['multiple','unassigned']))
 
-    perturbation_list=check_id_list(perturbation_list,adata_here,'perturbations')
+    perturbation_list=perturb_overlap_obs(perturbation_list,adata_here,'perturbations')
     X_df=multiple_annotations_to_design_matrix(adata_here,perturbation_list)
 
     #set control cells to 0                                                                                                       
@@ -45,7 +45,7 @@ def make_X_y_covariates(adata_here,
         y_df=pd.DataFrame(expression)
         y_df.index=adata_here.obs_names
         y_df.columns=genes
-    y_obs_list=check_id_list(y_obs,adata_here,'obs')
+    y_obs_list=perturb_overlap_obs(y_obs,adata_here,'obs')
     if len(y_obs_list)>0:
         y_obs_df=adata_here.obs[y_obs_list]
         if include_expression:
@@ -54,7 +54,7 @@ def make_X_y_covariates(adata_here,
             y_df=y_obs_df
 
     #covariates_df                                                                                                                                
-    covariates_list=check_id_list(covariates_list,adata_here,'covariates')
+    covariates_list=perturb_overlap_obs(covariates_list,adata_here,'covariates')
     covariates_df=multiple_annotations_to_design_matrix(adata_here,covariates_list)
 
     #whether to keep or remove unassigned                                                                                                                                                                                                                                                            
