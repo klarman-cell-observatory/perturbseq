@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import scanpy as sc
 import seaborn as sns
 import copy
-from perturbseq.pp import perturb_overlap_obs,multiple_annotations_to_design_matrix,split_train_valid_test
+from perturbseq.pp import perturb_overlap_obs,obs_to_design_matrix,split_train_valid_test
 #import mimosca 
 
 def make_X_y_covariates(adata_here,
@@ -25,7 +25,7 @@ def make_X_y_covariates(adata_here,
         perturbation_list=list(set(adata.obs['guide']).difference(['multiple','unassigned']))
 
     perturbation_list=perturb_overlap_obs(perturbation_list,adata_here,'perturbations')
-    X_df=multiple_annotations_to_design_matrix(adata_here,perturbation_list)
+    X_df=obs_to_design_matrix(adata_here,perturbation_list)
 
     #set control cells to 0                                                                                                       
     #TODO: think about this more                                                                                                  
@@ -55,7 +55,7 @@ def make_X_y_covariates(adata_here,
 
     #covariates_df                                                                                                                                
     covariates_list=perturb_overlap_obs(covariates_list,adata_here,'covariates')
-    covariates_df=multiple_annotations_to_design_matrix(adata_here,covariates_list)
+    covariates_df=obs_to_design_matrix(adata_here,covariates_list)
 
     #whether to keep or remove unassigned                                                                                                                                                                                                                                                            
     if not keep_unassigned:
