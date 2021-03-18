@@ -138,7 +138,7 @@ def downsample_counts(adata_here,
 
 #preparing for linear model
 #==========================
-def perturb_overlap_obs(perturbation_list,adata_here,list_type):
+def perturb_overlap_obs(perturbation_list,adata_here,list_name):
 
     """Get perturbations present as obs
 
@@ -152,7 +152,7 @@ def perturb_overlap_obs(perturbation_list,adata_here,list_type):
         else:
             count_perturbations+=1
             found_perturbations.append(perturbation)
-    print('Found '+str(count_perturbations)+'/'+str(len(perturbation_list))+' '+list_type)
+    print('Found '+str(count_perturbations)+'/'+str(len(perturbation_list))+' '+list_name)
 
     return(found_perturbations)
 
@@ -259,7 +259,7 @@ def subset_singly_perturbed(adata_here,perturbations_obs='guide',keep_unassigned
     if copy: adata_here = adata_here.copy()
         
     #===============
-    perturb.pp.perturbations_per_cell(adata_here,level=level)
+    perturb.pp.perturbs_per_cell(adata_here,perturbations_obs=perturbations_obs)
     keep=adata_here.obs_names[adata_here.obs['perturbs_per_cell.'+perturbations_obs]==1]
     if keep_unassigned:
         unassigned=adata_here.obs_names[adata_here.obs[perturbations_obs]=='unassigned']
@@ -431,150 +431,80 @@ def annotate_controls(adata_here,perturbations_obs,control_guides=[],pref='',cop
     if copy:
         return(adata_here)
 
-def remove_guides_from_gene_names(adata_here,pref='',copy=False):
+def delete_guides_from_varnames(adata_here,perturbations_obs='guide',pref='',copy=False):
+
+    """Delete perturbations from adata.var_names
+
+    
+    """
 
     if copy: adata_here = adata_here.copy()
 
-    guides=list(set(adata_here.obs['guide']).difference(['unassigned','multiple']))
+    guides=list(set(adata_here.obs[perturbations_obs]).difference(['unassigned','multiple']))
     guides_in_adata_varnames=list(set(adata_here.var_names).intersection(set(guides)))
     print('filtering out',len(guides_in_adata_varnames),'guide names from the expression matrix')
-    if len(guides_in_adata_varnames)>0:
+    if len(guides_in_adata_varnames)>0 and not copy:
         remaining_varnames=list(set(adata_here.var_names).difference(set(guides_in_adata_varnames)))
         adata_here._inplace_subset_var(remaining_varnames)
-    else:
-        adata_here=adata_here
+    
     if copy:
-        return(adata_here)
+        return(adata_here[:,remaining_varnames])
 
 #========= perturbation stats
  
-def perturbations_per_cell(adata_here,pref='',level='guide',copy=False):
+def perturbs_per_cell(adata_here,perturbations_obs='guide',copy=False):
     
+    """Number of perturbations per cell
+
+    Stored as adata.uns['perturbs_per_cell.'+perturbations_obs]
+    """
+
     if copy: adata_here = adata_here.copy()
     
-    if pref+'cell2'+level not in adata_here.obsm:
-        print('ERROR: '+pref+'cell2'+level+' was not found in adata.obsm. Please first run perturb.read_perturbations_csv')
-        exit
-    pe_df=adata_here.obsm[pref+'cell2'+level]>0.0
+    #get perturbations
+    perturbations=_get_perturbations(adata_here,
+                                     perturbations_obs=perturbations_obs)
+    #find their obs
+    perturbations=perturb_overlap_obs(perturbations,adata_here,list_name='')
+    #then count the nonzero obs
+    pe_df=adata_here.obs.loc[:,perturbations]>0.0
     perturbations_per_cell_val=pe_df.sum(axis=1)
-    adata_here.obs[pref+level+'.perturbations_per_cell']=perturbations_per_cell_val
+    adata_here.obs['perturbs_per_cell.'+perturbations_obs]=perturbations_per_cell_val
     
     if copy:
         return(adata_here)
 
-def cells_per_perturbation(adata_here,level='guide',pref='',copy=False):
+def cells_per_perturb(adata_here,perturbations_obs='guide',copy=False):
 
     """Counts the number of cells for each perturbation.
 
-    Args:
-        adata_here: adata
-        level: guide
-
-    Returns:
-        something: something
     """
     
     if copy: adata_here = adata_here.copy()
 
-    if pref+'cell2'+level not in adata_here.obsm:
-        print('ERROR: '+pref+'cell2'+level+' was not found in adata.obsm. Please first run perturb.read_perturbations_csv')
-        exit
-    pe_df=adata_here.obsm[pref+'cell2'+level]>0.0
+    #get perturbations                           
+    perturbations=_get_perturbations(adata_here,
+                                     perturbations_obs=perturbations_obs)
+    #find their obs                                                                                      
+    perturbations=perturb_overlap_obs(perturbations,adata_here,list_name='')
+    #then count the nonzero obs                                                                          
+    pe_df=adata_here.obs.loc[:,perturbations]>0.0
     
     cells_per_perturbation_val=pe_df.sum(axis=0)
-    adata_here.uns[pref+level+'.cells_per_perturbation']=pd.DataFrame(cells_per_perturbation_val,index=cells_per_perturbation_val.index) 
-    adata_here.uns[pref+level+'.cells_per_perturbation'].columns=['Number of cells']
+    adata_here.uns['cells_per_perturb.'+perturbations_obs+'.including_multiply_infected']=pd.DataFrame(cells_per_perturbation_val,index=cells_per_perturbation_val.index) 
+    adata_here.uns['cells_per_perturb.'+perturbations_obs+'.including_multiply_infected'].columns=['Number of cells']
     #also restrict to singly infected cells
     perturbations_per_cell_val=pe_df.sum(axis=1)
     singles_df=pe_df.loc[perturbations_per_cell_val==1,:]
     cells_per_perturbation_val_singles=singles_df.sum(axis=0)
-    adata_here.uns[pref+level+'.cells_per_perturbation.singly_infected']=pd.DataFrame(cells_per_perturbation_val_singles,index=cells_per_perturbation_val_singles.index)
-    adata_here.uns[pref+level+'.cells_per_perturbation.singly_infected'].columns=['Number of cells']
+    adata_here.uns['cells_per_perturb.'+perturbations_obs]=pd.DataFrame(cells_per_perturbation_val_singles,index=cells_per_perturbation_val_singles.index)
+    adata_here.uns['cells_per_perturb.'+perturbations_obs].columns=['Number of cells']
     
+    #get the design matrix
+    cell2perturbs=obs_to_design_matrix(adata_here, perturbations, binarize=True, covariate=False)
+    
+
+
     if copy:
         return(adata_here)
 
-#this method taken from Dixit et al., 2016, https://github.com/asncd/MIMOSCA/blob/master/GBC_CBC_pairing/fit_moi.ipynb
-def moi(adata_here,pref='',level='guide',gridsize=100,maxk=10):
-    
-    import scipy
-    from numpy import unravel_index
-    
-    print('Computing MOI and detection probability using code from Dixit et al., 2016')
-
-    if pref+level+'.perturbations_per_cell' not in adata.obs:
-        print('ERROR: missing adata.obs['+pref+level+'.perturbations_per_cell], please run perturb.pp.perturbations_per_cell first')
-        exit
-    if pref+level+'.cells_per_perturbation' not in adata.uns:
-        print('ERROR: missing adata.obs['+pref+level+'.cells_per_perturbation], please run perturb.pp.cells_per_perturbation first')
-        exit
-        
-    moi_dist=np.array(list(adata_here.obs[pref+level+'.perturbations_per_cell']))
-    num_virus=adata_here.uns[pref+level+'.cells_per_perturbation'].shape[0]
-
-    n,bins=np.histogram(moi_dist,range(int(maxk)+1))
-
-    #maximum number of viruses possible (per cell)
-    #maxk
-
-    #total number of unique barcodes
-    print('number of distinct perturbations',num_virus)
-
-    #gridsize for performing lambda and alpha search
-    nums=gridsize
-
-    #specify start and finishing MOI to search over, it is set to 0.1 and 3 here
-    mois=np.linspace(0.1,5,nums) #(0.1,2,nums)
-    #specify start and finishing detection probability to search over, it is set to 0.1 and 0.99 here
-    detects=np.linspace(0.1,0.99,nums)
-
-    #initialize search array
-    LL=np.zeros((nums,nums))
-
-
-    #loop through square grid of different poission parameters and detection probabilities
-    for i in range(nums):
-        for m in range(nums):
-
-            #current parameter guesses
-            moi_guess=mois[i]
-            detect_guess=detects[m]
-
-            #initialize possion distribution with current guess    
-            pdf=scipy.stats.poisson.pmf(k=range(maxk),mu=moi_guess)
-
-            #Zero truncation and renormalization
-            pdf[0]=0
-            pdf=np.divide(pdf,np.sum(pdf))
-
-
-            #get probabilities after convolving with binomial distribution
-            zibpdf=np.zeros((maxk,1))
-            for k in range(maxk):
-                pf=0
-                for j in np.arange(k,maxk):
-                    pf+=pdf[j]*scipy.stats.binom.pmf(k,j,detect_guess)
-                zibpdf[k]=pf
-
-            #evaluate log likelihood after multiplying with observed values
-            ll=1.0
-            for k in range(maxk):#range(len(n)):
-                ll+=n[k]*np.log(zibpdf[k])
-            LL[i,m]=ll
-
-    #Log likelihood vs. paramter space
-    plt.contour(np.round(detects,2),np.round(mois,2),LL,400,cmap='magma')
-    plt.colorbar()
-    plt.xlabel('Detection Probability')
-    plt.ylabel('MOI')
-
-    #Find parameters that maximize the log likelihood
-    final_tuple=unravel_index(LL.argmax(), LL.shape)
-    moi_guess=int(100*mois[final_tuple[0]])/100
-    detect_guess=int(100*detects[final_tuple[1]])/100
-    print('MOI:',moi_guess)
-    print('Detection probability:',detect_guess)
-
-    adata_here.uns['MOI']=moi_guess
-    adata_here.uns['Detection_probability']=detect_guess
-    plt.scatter(detect_guess,moi_guess,color='black',s=50)
