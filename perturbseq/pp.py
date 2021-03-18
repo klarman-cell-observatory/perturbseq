@@ -7,7 +7,7 @@ from perturbseq.util import display_progress
 def obs_mean(adata_here,grouping_variable,
              obs,outpref='obs_mean',copy=False):
 
-    """Compute the mean of an obs across pre-defined groups
+    """Get the mean of an obs across pre-defined groups
     
     """
     
@@ -54,6 +54,11 @@ def get_perturbations(adata_here,
                      perturbations_obs='guide',
                      copy=False):
     
+    """Get a list of perturbations in the dataset
+
+    It will be stored as adata.uns['PS.'+perturbations_obs+'.list']
+    """
+
     if copy: adata_here = adata_here.copy()
         
     #check if perturbations_obs in adata
@@ -76,6 +81,10 @@ def get_perturbations(adata_here,
 def downsample_counts(adata_here,
                       downsampling_prob,
                       my_rng=np.random.RandomState(1234)):
+    """Downsample counts per cell to a fraction
+
+    """
+
     import time
     from scipy.sparse import csr_matrix
     from scipy.sparse import coo_matrix
@@ -129,7 +138,12 @@ def downsample_counts(adata_here,
 
 #preparing for linear model
 #==========================
-def check_id_list(perturbation_list,adata_here,list_type):
+def perturb_overlap_obs(perturbation_list,adata_here,list_type):
+
+    """Get perturbations present as obs
+
+    """
+
     found_perturbations=[]
     count_perturbations=0
     for perturbation in perturbation_list:
@@ -142,40 +156,35 @@ def check_id_list(perturbation_list,adata_here,list_type):
 
     return(found_perturbations)
 
-def multiple_annotations_to_design_matrix(adata_here,annotation_names,
-                                          binarize=True):
+def obs_to_design_matrix(adata_here,obs_names,
+                                          binarize=True,covariate=False):
 
-    #say that we expect numerical data here (0/1)                                                                                                                  
-    keep_anno_names=[]
-    for i in range(len(annotation_names)):
-        anno=annotation_names[i]
-        if anno not in adata_here.obs:
-            print('WARNING: '+anno+' not in the available annotations. Please add it and re-run')
+    """Design matrix for linear model from obs
+
+    """
+
+    #say that we expect numerical data here (0/1)
+                                                                      
+    keep_obs_names=[]
+    for i in range(len(obs_names)):
+        obs=obs_names[i]
+        if obs not in adata_here.obs:
+            print('WARNING: '+obs+' not in the available individual annotations. Please add it and re-run')
         else:
-            keep_anno_names.append(anno)
+            keep_obs_names.append(obs)
 
-    annotations=keep_anno_names
+    annotations=keep_obs_names
     cells=list(adata_here.obs_names)
-    design_matrix=np.zeros((len(cells),len(annotations)))
-
-    for cell_idx in range(len(adata_here.obs_names)):
-
-        if cell_idx%1000==0:
-            display_progress(cell_idx,len(adata_here.obs_names))
-
-        for anno_idx in range(len(annotations)):
-            anno=annotations[anno_idx]
-            design_matrix[cell_idx,anno_idx]=adata_here.obs[anno][cell_idx]
-    display_progress(1,1)
-    print('\n')
-    design_matrix_df=pd.DataFrame(design_matrix)
+    design_matrix_df=adata_here.obs.loc[cells,annotations]
+    
     if binarize:
-        design_matrix_df=(design_matrix_df>0.0)*1.0
+        design_matrix_df=(design_matrix_df.astype(float)>0.0)*1.0
     design_matrix_df.index=cells
     design_matrix_df.columns=annotations
 
-    #go through all the cells, and figure out what combinations of perturbations there are 
-    #add these to the design matrix
+    #go through all the cells, and figure out what combinations of perturbations there are                              
+    #add these to the design matrix                                           
+                                          
     design_matrix_df_uniq=design_matrix_df.drop_duplicates()
     column_names=design_matrix_df_uniq.columns
     interaction_terms=[]
@@ -188,24 +197,31 @@ def multiple_annotations_to_design_matrix(adata_here,annotation_names,
             current_columns.sort()
             current_columns_join=','.join(current_columns)
             interaction_terms.append(current_columns_join)
-    #add columns with the interaction terms
-    for interaction_term in interaction_terms:
-        interaction_columns=interaction_term.split(',')
-        values=design_matrix_df.loc[:,interaction_columns].prod(axis=1)
-        import copy
-        design_matrix_df[interaction_term]=copy.deepcopy(values)
+    if not covariate:
+        #add columns with the interaction terms
+        for interaction_term in interaction_terms:
+            interaction_columns=interaction_term.split(',')
+            values=design_matrix_df.loc[:,interaction_columns].prod(axis=1)
+            import copy
+            design_matrix_df[interaction_term]=copy.deepcopy(values)
 
     return(design_matrix_df)
 
+def split_train_valid_test(adata_here,
+                           training_proportion=0.6,
+                           validation_proportion=0.2,
+                           test_proportion=0.2,
+                           rng=None,copy_adata=False):
 
-def split_train_valid_test(adata_here,training_proportion=0.6,validation_proportion=0.2,test_proportion=0.2,rng=None,copy=False):
+    """Split cells into training, validation and test
+
+    """
+    
     assert training_proportion<=1.0
     assert validation_proportion<=1.0
     assert test_proportion<=1.0
     assert (training_proportion+validation_proportion+test_proportion)<=1.0
-    
-    if copy: adata_here = adata_here.copy()
-    
+
     num_examples=adata_here.n_obs
 
     if rng==None:
@@ -219,21 +235,24 @@ def split_train_valid_test(adata_here,training_proportion=0.6,validation_proport
     training=range(training_threshold)
     validation=range(training_threshold,min(validation_threshold,num_examples))
     test=range(validation_threshold,num_examples)
-    
-    #make obs with train, validation, test
+
+    #make obs with train, validation, test                                                               
     train_test_df=pd.DataFrame({'cell':adata_here.obs_names,
-                               'train_test':'train'},index=adata_here.obs_names)
+                               'train_valid_test':'train'},index=adata_here.obs_names)
     train_test_df=train_test_df.iloc[idx_shuff,:]
     train_test_df.iloc[training,1]='train'
     train_test_df.iloc[validation,1]='valid'
     train_test_df.iloc[test,1]='test'
-    adata_here.obs['train_test']=train_test_df.loc[adata_here.obs_names,'train_test']
+    print('splitting',train_test_df.loc[adata_here.obs_names,'train_valid_test'].value_counts())
+    return(train_test_df.loc[adata_here.obs_names,'train_valid_test'])
 
-    if copy:
-        return(adata_here)
 
-def filter_multiplets(adata_here,pref='',level='guide',keep_unassigned=True,
+def get_singly_perturbed(adata_here,pref='',level='guide',keep_unassigned=True,
                            copy=False):
+
+    """Keep only cells with one perturbation
+
+    """
     
     import pandas as pd
 
