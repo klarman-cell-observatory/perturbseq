@@ -487,23 +487,13 @@ def cells_per_perturb(adata_here,perturbations_obs='guide',copy=False):
                                      perturbations_obs=perturbations_obs)
     #find their obs                                                                                      
     perturbations=perturb_overlap_obs(perturbations,adata_here,list_name='')
-    #then count the nonzero obs                                                                          
-    pe_df=adata_here.obs.loc[:,perturbations]>0.0
-    
-    cells_per_perturbation_val=pe_df.sum(axis=0)
-    adata_here.uns['cells_per_perturb.'+perturbations_obs+'.including_multiply_infected']=pd.DataFrame(cells_per_perturbation_val,index=cells_per_perturbation_val.index) 
-    adata_here.uns['cells_per_perturb.'+perturbations_obs+'.including_multiply_infected'].columns=['Number of cells']
-    #also restrict to singly infected cells
-    perturbations_per_cell_val=pe_df.sum(axis=1)
-    singles_df=pe_df.loc[perturbations_per_cell_val==1,:]
-    cells_per_perturbation_val_singles=singles_df.sum(axis=0)
-    adata_here.uns['cells_per_perturb.'+perturbations_obs]=pd.DataFrame(cells_per_perturbation_val_singles,index=cells_per_perturbation_val_singles.index)
-    adata_here.uns['cells_per_perturb.'+perturbations_obs].columns=['Number of cells']
-    
-    #get the design matrix
-    cell2perturbs=obs_to_design_matrix(adata_here, perturbations, binarize=True, covariate=False)
-    
 
+    cell2perturbs=obs_to_design_matrix(adata_here, perturbations, binarize=True, covariate=False)
+    cell2perturbs_single=cell2perturbs.loc[:,perturbations]
+    cell2perturbs_counts=cell2perturbs.sum(axis=0)
+    cell2perturbs_single_counts=cell2perturbs_single.sum(axis=0)
+    adata_here.uns['cells_per_perturb.'+perturbations_obs+'.incl_multi_inf']=pd.DataFrame(cell2perturbs_counts,index=cell2perturbs_counts.index,columns=['Number of cells'])
+    adata_here.uns['cells_per_perturb.'+perturbations_obs]=pd.DataFrame(cell2perturbs_single_counts,index=cell2perturbs_single_counts.index,columns=['Number of cells'])
 
     if copy:
         return(adata_here)
