@@ -259,7 +259,7 @@ def subset_singly_perturbed(adata_here,perturbations_obs='guide',keep_unassigned
     if copy: adata_here = adata_here.copy()
         
     #===============
-    perturb.pp.perturbs_per_cell(adata_here,perturbations_obs=perturbations_obs)
+    perturbs_per_cell(adata_here,perturbations_obs=perturbations_obs)
     keep=adata_here.obs_names[adata_here.obs['perturbs_per_cell.'+perturbations_obs]==1]
     if keep_unassigned:
         unassigned=adata_here.obs_names[adata_here.obs[perturbations_obs]=='unassigned']
