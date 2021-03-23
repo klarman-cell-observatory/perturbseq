@@ -50,6 +50,7 @@ Summarization across perturbations
    :toctree: .   
 
    pp.obs_mean
+   pp.score_programs
 
 Preparing for modeling
    

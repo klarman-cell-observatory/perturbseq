@@ -4,6 +4,26 @@ import matplotlib
 import matplotlib.pyplot as plt
 from perturbseq.util import display_progress
 
+def score_programs(adata_here,program_name='bulk.guide.program',
+                  pref=None,copy=False):
+    
+    """Get program score for each cell, by averaging program genes
+
+    """
+
+    if copy: adata_here = adata_here.copy()
+    
+    if pref is None:
+        pref=program_name
+    programs=list(set(adata_here.var[program_name]))
+    for pro in programs:
+        print('scoring',pro)
+        pro_genes=adata_here.var_names[adata_here.var[program_name]==pro]
+        adata.obs[pref+str(pro)]=adata[:,pro_genes].X.mean(axis=1)
+        
+    if copy:
+        return(adata_here)
+
 def obs_mean(adata_here,grouping_variable,
              obs,outpref='obs_mean',copy=False):
 
@@ -36,7 +56,7 @@ def obs_mean(adata_here,grouping_variable,
     profile_matrix_df=pd.DataFrame(profile_matrix)
     profile_matrix_df.index=profiles
     profile_matrix_df.columns=obs
-    adata_here.uns['bulk.'+pref]=profile_matrix_df
+    adata_here.uns[outpref]=profile_matrix_df
         
     if copy:
         return(adata_here)
