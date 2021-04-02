@@ -19,7 +19,7 @@ def score_programs(adata_here,program_name='bulk.guide.program',
     for pro in programs:
         print('scoring',pro)
         pro_genes=adata_here.var_names[adata_here.var[program_name]==pro]
-        adata.obs[pref+str(pro)]=adata[:,pro_genes].X.mean(axis=1)
+        adata_here.obs[pref+str(pro)]=adata_here[:,pro_genes].X.mean(axis=1)
         
     if copy:
         return(adata_here)
@@ -289,7 +289,7 @@ def subset_singly_perturbed(adata_here,perturbations_obs='guide',keep_unassigned
     #===============
         
     if copy:
-        return(adata_here)
+        return(adata_here[keep,:])
 
 def compute_TPT(gbcs_dataset):
     
@@ -494,27 +494,41 @@ def perturbs_per_cell(adata_here,perturbations_obs='guide',copy=False):
     if copy:
         return(adata_here)
 
-def cells_per_perturb(adata_here,perturbations_obs='guide',copy=False):
+def cells_per_perturb(adata_here,perturbations_obs='guide',count_unassigned=False,copy=False):
 
-    """Counts the number of cells for each perturbation.
-
+    """Counts the number of cells for each perturbation.                                                       
+                                                                                                               
     """
-    
+
     if copy: adata_here = adata_here.copy()
 
-    #get perturbations                           
+    #get perturbations                                                                                         
     perturbations=_get_perturbations(adata_here,
                                      perturbations_obs=perturbations_obs)
-    #find their obs                                                                                      
-    perturbations=perturb_overlap_obs(perturbations,adata_here,list_name='')
+    if count_unassigned:
+        perturbations=list(set(perturbations).union(['unassigned']))
 
-    cell2perturbs=obs_to_design_matrix(adata_here, perturbations, binarize=True, covariate=False)
-    cell2perturbs_single=cell2perturbs.loc[:,perturbations]
+    #find their obs                                                                                            
+    perturbations=perturb_overlap_obs(perturbations,adata_here,list_name='perturbations')
+
+    cell2perturbs=1.0*(adata_here.obs.loc[:,perturbations]>0.0)
+    cells_with_single_perturb=(cell2perturbs.sum(axis=1)==1)
+    cell2perturbs_single=cell2perturbs.loc[cells_with_single_perturb,perturbations]
     cell2perturbs_counts=cell2perturbs.sum(axis=0)
     cell2perturbs_single_counts=cell2perturbs_single.sum(axis=0)
-    adata_here.uns['cells_per_perturb.'+perturbations_obs+'.incl_multi_inf']=pd.DataFrame(cell2perturbs_counts,index=cell2perturbs_counts.index,columns=['Number of cells'])
     adata_here.uns['cells_per_perturb.'+perturbations_obs]=pd.DataFrame(cell2perturbs_single_counts,index=cell2perturbs_single_counts.index,columns=['Number of cells'])
-
+    counts=adata_here.obs[perturbations_obs].value_counts()
+    adata_here.uns['cells_per_perturb.'+perturbations_obs+'.incl_multi_inf']=pd.DataFrame({"Number of cells":counts},
+                                                                                         index=counts.index)
+    if not count_unassigned:
+        adata_here.uns['cells_per_perturb.'+perturbations_obs+'.incl_multi_inf']=adata_here.uns['cells_per_perturb.'+perturbations_obs+'.incl_multi_inf'].loc[adata_here.uns['cells_per_perturb.'+perturbations_obs+'.incl_multi_inf'].index!='unassigned',:]
+        
     if copy:
         return(adata_here)
+
+
+
+
+
+
 

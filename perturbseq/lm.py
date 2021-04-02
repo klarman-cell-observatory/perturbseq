@@ -8,32 +8,74 @@ import copy
 from perturbseq.pp import perturb_overlap_obs,obs_to_design_matrix,split_train_valid_test
 #import mimosca 
 
-def make_X_y_covariates(adata_here,
-                        model_name='linear_model',
-                        include_expression=True,
-                        y_obs=[],
-                        perturbation_list=None,
-                        control_cells=[],
-                        covariates_list=[],
-                        use_raw=False,
-                        keep_unassigned=False):
+def _train_lm(X_df,
+             y_df,
+             lm,
+             training=None):
+    
+    #convert to arrays
+    X=np.array(X_df)
+    y=np.array(y_df)
+    
+    if training is None:
+        lm.fit(X,y)
+    else:
+        lm.fit(X[training,:],y[training,:])
+    
+    coef=pd.DataFrame(lm.coef_,
+                        index=y_df.columns,
+                        columns=X_df.columns)
+    
+    return(coef,lm)
 
-    if copy: adata_here = adata_here.copy()
+def compute_X_y(adata_here,
+             model_name='lm',
+            include_expression=True,
+            y_obs=[],
+            perturbations_list=None,
+            perturbations_obs='guide',
+            covariates_list=[],
+            control_names=[],
+            use_raw=False,
+            keep_unassigned=False):
+    
+    #===========================
+    #setup list of perturbations
+    #===========================                                                                    
+    if perturbations_list is None:
+        try:
+            assert perturbations_obs in adata_here.obs.columns
+        except AssertionError:
+            print('ERROR: "'+perturbations_obs+'" is not in adata.obs. It is needed for determining the perturbations present in the data.')
+            return
+        perturbations_list=_get_perturbations(adata_here,
+                                             perturbations_obs=perturbations_obs)
 
-    #X_df                                                                                                                         
-    if perturbation_list is None:
-        perturbation_list=list(set(adata.obs['guide']).difference(['multiple','unassigned']))
+    #get the subset of perturbations from the list that are in adata
+    perturbations_list=perturb_overlap_obs(perturbations_list,adata_here,'perturbations')
+    
+    #===
+    # X
+    #===
+    X_df=obs_to_design_matrix(adata_here,perturbations_list)
+    #set control cells to 0                                                                                                                                                                                                        
+    ##control_cells_in_data=list(set(control_cells).intersection(set(adata_here.obs_names)))
+    control_vars=[]
+    for control_var in control_names:
+        if control_var not in adata_here.obs.columns:
+            print('WARNING: control variable "'+control_var+'" not in dataset. Ignoring.')
+        else:
+            control_vars.append(control_var)
+    if len(control_vars)>0:
+        control_cells_in_data=list(adata_here[adata_here.obs[control_vars].astype(float).sum(axis=1)>0,:].obs_names)
+        if len(control_cells_in_data)>0:
+            X_df.loc[control_cells_in_data,:]=0
+    else:
+        control_cells_in_data=[]
 
-    perturbation_list=perturb_overlap_obs(perturbation_list,adata_here,'perturbations')
-    X_df=obs_to_design_matrix(adata_here,perturbation_list)
-
-    #set control cells to 0                                                                                                       
-    #TODO: think about this more                                                                                                  
-    control_cells_in_data=list(set(control_cells).intersection(set(adata_here.obs_names)))
-    if len(control_cells_in_data)>0:
-        X_df.loc[control_cells_in_data,:]=0
-
-    #y_df         
+    #===
+    # y 
+    #===
     #expression data  
     if include_expression:
         if use_raw:
@@ -53,52 +95,67 @@ def make_X_y_covariates(adata_here,
         else:
             y_df=y_obs_df
 
-    #covariates_df                                                                                                                                
+    #==========
+    #covariates
+    #==========
     covariates_list=perturb_overlap_obs(covariates_list,adata_here,'covariates')
-    covariates_df=obs_to_design_matrix(adata_here,covariates_list)
+    covariates_df=obs_to_design_matrix(adata_here,covariates_list,binarize=False,covariate=True)
 
-    #whether to keep or remove unassigned                                                                                                                                                                                                                                                            
-    if not keep_unassigned:
-        keep=list(set(control_cells).union(set(list(X_df.index[X_df.sum(axis=1)>0]))))
-
-    if keep_unassigned:
-        keep=list(set(control_cells).union(set(list(X_df.index[X_df.sum(axis=1)>0]))).union(adata_here[adata_here.obs['unassigned']>0,:].obs_names\
-))
-
+    #whether to keep or remove unassigned      
+    assigned_cells=set(list(X_df.index[X_df.sum(axis=1)>0])) #with the current perturbations!
+    if 'unassigned' not in adata_here.obs.columns:
+        print('WARNING: unassigned cells are not annotated and will be ignored')
+    else:
+        unassigned_cells=adata_here[adata_here.obs['unassigned']>0,:].obs_names
+    keep=list(set(control_cells_in_data).union(assigned_cells))
+    if keep_unassigned and 'unassigned' in adata_here.obs.columns:
+        keep=list(set(control_cells_in_data).union(assigned_cells).union(unassigned_cells))
+    
     X_df=X_df.loc[keep,:]
     y_df=y_df.loc[keep,:]
-    covariates_df=covariates_df.loc[X_df.index,:]
-
-    adata_here.obs[model_name+'.X_df']=X_df
-    adata_here.obs[model_name+'.y_df']=y_df
-    adata_here.obs[model_name+'.covariates_df']=covariates_df
-
-    if copy:
-        return(adata_here)
-
-
-def train_lm(X_df,
-             y_df,
-             lm,
-             training=None):
+    covariates_df=covariates_df.loc[keep,:]
+    print(X_df.shape,covariates_df.shape,y_df.shape)
     
-    #convert to arrays
-    X=np.array(X_df)
-    y=np.array(y_df)
+    return(X_df,y_df,covariates_df)
+
+def split_train_valid_test(adata_here,
+                           training_proportion=0.6,
+                           validation_proportion=0.2,
+                           test_proportion=0.2,
+                           rng=None,copy_adata=False):
     
-    if training is None:
-        lm.fit(X,y)
+    assert training_proportion<=1.0
+    assert validation_proportion<=1.0
+    assert test_proportion<=1.0
+    assert (training_proportion+validation_proportion+test_proportion)<=1.0
+
+    num_examples=adata_here.n_obs
+
+    if rng==None:
+        idx_shuff=np.random.RandomState(seed=77).permutation(range(num_examples))
     else:
-        lm.fit(X[training,:],y[training,:])
-    
-    coef=pd.DataFrame(lm.coef_,
-                        index=y_df.columns,
-                        columns=X_df.columns)
-    
-    return(coef,lm)
-    
+        idx_shuff=rng.permutation(range(num_examples))
 
-def train(adata_here,lm,
+    training_threshold=int(num_examples*training_proportion)
+    validation_threshold=int(num_examples*(training_proportion+validation_proportion))
+
+    training=range(training_threshold)
+    validation=range(training_threshold,min(validation_threshold,num_examples))
+    test=range(validation_threshold,num_examples)
+
+    #make obs with train, validation, test                                                                              
+    train_test_df=pd.DataFrame({'cell':adata_here.obs_names,
+                               'train_valid_test':'train'},index=adata_here.obs_names)
+    train_test_df=train_test_df.iloc[idx_shuff,:]
+    train_test_df.iloc[training,1]='train'
+    train_test_df.iloc[validation,1]='valid'
+    train_test_df.iloc[test,1]='test'
+    print('splitting',train_test_df.loc[adata_here.obs_names,'train_valid_test'].value_counts())
+    return(train_test_df.loc[adata_here.obs_names,'train_valid_test'])
+
+
+
+def train_lm(adata_here,lm,
         model_name='linear_model',
         perturbations_list=None, 
         include_expression=True, 
@@ -112,34 +169,31 @@ def train(adata_here,lm,
         training_proportion=0.8,
         validation_proportion=0.1,
         test_proportion=0.1,
-        copy=False):
+        control_names=[],
+        copy_adata=False):
     
-    if copy: adata_here = adata_here.copy()
-        
-    #perturbation list
-    if perturbations_list is None:
-        perturbations_list=list(set(','.join(list(set(adata_here.obs['guide']).difference(['unassigned']))).split(',')))
-        print(perturbations_list)
+    if copy_adata: adata_here = adata_here.copy()
         
     #split into train/test unless already done
-    if 'train_test' not in adata_here.obs:
-        split_train_valid_test(adata_here,
+    #if 'train_valid_test' not in adata_here.obs:
+    if True:
+        print('WARNING: Over-writing adata.obs["'+'PS.train_valid_test"]')
+        adata_here.obs['PS.train_valid_test']=split_train_valid_test(adata_here,
                                training_proportion=training_proportion,
                                validation_proportion=validation_proportion,
                                test_proportion=test_proportion,
-                               rng=rng,
-                               copy=copy)
+                               rng=rng)
         
     
     #first, make datasets
-    ###X_df,y_df,covariates_df=
-    make_X_y_covariates(adata_here,
-                        model_name=model_name,
-                        include_expression=include_expression,
+    X_df,y_df,covariates_df=compute_X_y(adata_here,
+                                model_name=model_name,
+                                include_expression=include_expression,
                                 y_obs=y_obs,
-                               perturbation_list=perturbations_list,
+                               perturbations_list=perturbations_list,
                                covariates_list=covariates_list,
                                use_raw=use_raw,
+                                        control_names=control_names,
                                keep_unassigned=keep_unassigned)
     
     #check data
@@ -153,13 +207,21 @@ def train(adata_here,lm,
     else:
         X_plus_covariates=np.array(X_df)
         X_plus_covariates_columns=list(X_df.columns)
-    #subset of the data with the desired perturbations
-    adata_subset=adata_here[X_df.index,:]
-    training=[i for i in range(adata_subset.n_obs) if adata_subset.obs['train_test'][i]=='train']
+        
+    #training set
+    X_cells=list(X_df.index)
+    print(adata_here.obs['PS.train_valid_test'].value_counts())
+    training=[cellidx for cellidx in range(X_df.shape[0]) if adata_here.obs['PS.train_valid_test'].loc[X_cells[cellidx]]=='train']
+    validation=[cellidx for cellidx in range(X_df.shape[0]) if adata_here.obs['PS.train_valid_test'].loc[X_cells[cellidx]]=='valid']
+    test=[cellidx for cellidx in range(X_df.shape[0]) if adata_here.obs['PS.train_valid_test'].loc[X_cells[cellidx]]=='test']
+    
+    print('train',len(training))
+    print('valid',len(validation))
+    print('test',len(test))
     
     #train model
     print('\nFitting model\n',lm)
-    coef,trained_lm=train_lm(pd.DataFrame(X_plus_covariates,
+    coef,trained_lm=_train_lm(pd.DataFrame(X_plus_covariates,
                                           index=X_df.index,
                                           columns=X_plus_covariates_columns),
                              y_df,
@@ -176,30 +238,49 @@ def train(adata_here,lm,
             if X_df.columns[idx] in adjust_vars:
                 adjust_vars_idx.append(idx)
         #get adjusted X (this has the covariates also, though they have not been adjusted)
-        X_adjust=np.array(mimosca.bayes_cov_col(y_df,
+        X_adjust=pd.DataFrame(np.array(mimosca.bayes_cov_col(y_df,
                                                 pd.DataFrame(X_plus_covariates,
                                                             index=X_df.index),
                                                 adjust_vars_idx,
-                                                trained_lm))        
+                                                trained_lm)),
+                              index=X_df.index,
+                              columns=X_plus_covariates_columns)
         print('Re-fitting model on adjusted data\n',lm)
-        coef,trained_lm=train_lm(pd.DataFrame(X_adjust,
-                                              index=X_df.index,
-                                              columns=X_plus_covariates_columns),
+        coef,trained_lm=_train_lm(X_adjust,
                                  y_df,
                                  lm,
-                                 training=None)    
+                                 training=training) 
+        
+    #compute the performance of the model
+    ##y_pred=trained_lm.predict(np.array(X_df))
+    ##performance=compute_performance(y_df,y_pred,training,validation,test)
         
         
     #save items into adata
-    adata_here.uns[model_name+'.coef']=coef
-    adata_here.uns[model_name+'.y']=y_df
-    adata_here.uns[model_name+'.X']=pd.DataFrame(X_plus_covariates,
-                                                index=X_df.index,
-                                                columns=X_plus_covariates_columns)
+    if 'PS.'+model_name+'.X' in adata_here.uns:
+        print('WARNING: Over-writing adata.uns["'+'PS.'+model_name+'.X"]')
+    adata_here.uns['PS.'+model_name+'.X']=X_df
+    if 'PS.'+model_name+'.y' in adata_here.uns:
+        print('WARNING: Over-writing adata.uns["'+'PS.'+model_name+'.y"]')
+    adata_here.uns['PS.'+model_name+'.y']=y_df
+    if 'PS.'+model_name+'.covariates' in adata_here.uns:
+        print('WARNING: Over-writing adata.uns["'+'PS.'+model_name+'.covariates"]')
+    adata_here.uns['PS.'+model_name+'.covariates']=covariates_df
+    if 'PS.'+model_name+'.coef' in adata_here.uns:
+        print('WARNING: Over-writing adata.uns["'+'PS.'+model_name+'.coef"]')
+    adata_here.uns['PS.'+model_name+'.coef']=coef
+    ##if 'PS.'+model_name+'.performance' in adata_here.uns:
+    ##    print('WARNING: Over-writing adata.uns["'+'PS.'+model_name+'.performance"]')
+    ##adata_here.uns['PS.'+model_name+'.performance']=performance
+
     if adjust:
-        adata_here.uns[model_name+'.X_adjust']=pd.DataFrame(X_adjust,
+        if 'PS.'+model_name+'.X' in adata_here.uns:
+            print('WARNING: Over-writing adata.uns["'+'PS.'+model_name+'.X_adjust"]')
+        adata_here.uns[model_name+'.X_adjust']=pd.DataFrame(X_adjust.loc[X_df.index,X_df.columns],
                                                 index=X_df.index,
                                                 columns=X_plus_covariates_columns)
     
-    if copy:
+    if copy_adata:
         return(adata_here)
+    
+
