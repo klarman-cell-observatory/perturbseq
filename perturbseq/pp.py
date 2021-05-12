@@ -4,6 +4,36 @@ import matplotlib
 import matplotlib.pyplot as plt
 from perturbseq.util import display_progress
 
+def programs2go(program2gene_dict,organism="hsapiens",fdr=0.1):
+    
+    """Get GO terms for programs.                                                                                            
+                                                                                                                                                                 
+    """
+
+    gotable=pd.DataFrame(columns=['name','p_value','program'])
+    
+    for program in program2gene_dict:
+        genes=program2gene_dict[program]
+        go_res=sc.queries.enrich(genes, org=organism)
+        go_res=go_res.loc[go_res['significant'],:]
+        gotable_current=go_res.loc[go_res['source']=='GO:BP',['name','p_value']]
+        if gotable_current.shape[0]==0:
+            continue
+        #correct p-value for multiple testing
+        from statsmodels.stats.multitest import multipletests
+        gotable_current['p_value']=multipletests(gotable_current['p_value'],method='fdr_bh')[1]
+        gotable_current['program']='Pro: '+str(program)
+        gotable=pd.concat([gotable,gotable_current],axis=0)
+    go_table_result=gotable.pivot(index='name',columns='program')[['p_value']]
+    go_table_result=go_table_result.fillna(1)
+    go_table_result=-np.log10(go_table_result)
+    
+    #go through each program and print me the sig go terms
+    for program in go_table_result.columns:
+        keep=go_table_result.loc[go_table_result[program]>-np.log10(fdr),:]
+        keep=keep.sort_values(by=program,ascending=False)[program]
+    return(go_table_result)
+
 def score_programs(adata_here,program_name='bulk.guide.program',
                   pref=None,copy=False):
     
