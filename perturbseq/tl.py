@@ -8,10 +8,10 @@ import seaborn as sns
 #========= may have to split some of these methods into utils later
 def get_cls_adata(adata_here,n_neighbors):
     sc.pp.neighbors(adata_here,n_neighbors=n_neighbors,use_rep='X')
-    sc.tl.louvain(adata_here)
+    sc.tl.leiden(adata_here)
     sc.tl.umap(adata_here)
-    sc.pl.umap(adata_here,color=['louvain'])
-    return(adata_here.obs['louvain'])
+    sc.pl.umap(adata_here,color=['leiden'])
+    return(adata_here.obs['leiden'])
 
 #a method to automatically order the groups
 def average_df_by_group(df,grouping):
@@ -272,7 +272,7 @@ def bulk(adata_here,grouping_variable,by_batch=False,return_matrix=False,use_raw
     if return_matrix:
         return(profile_matrix_df)
 
-def enriched_features(adata,f1='louvain',f2='batch',fdr=0.05,
+def enriched_features(adata,f1='leiden',f2='batch',fdr=0.05,
                       copy=False,add_min_pval=True,pval_correction='fdr_bh',ps=1e-10):
     
     if copy: adata=adata.copy()

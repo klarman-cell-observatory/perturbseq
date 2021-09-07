@@ -57,7 +57,7 @@ def score_programs(adata_here,program_name='bulk.guide.program',
 def obs_mean(adata_here,grouping_variable,
              obs,outpref='obs_mean',copy=False):
 
-    """Get the mean of an obs across pre-defined groups
+    """Get the mean of an obs across pre-defined groups.
     
     """
     

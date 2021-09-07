@@ -8,6 +8,61 @@ import copy
 from perturbseq.pp import perturb_overlap_obs,obs_to_design_matrix,split_train_valid_test
 #import mimosca 
 
+#from MIMOSCA
+#https://github.com/asncd/MIMOSCA/blob/8966411848c75e935abd5b86e77f6bb00acea2b4/mimosca.py
+def bayes_cov_col(Y,X,cols,lm):
+    """
+    @Y    = Expression matrix, cells x x genes, expecting pandas dataframe
+    @X    = Covariate matrix, cells x covariates, expecting pandas dataframe
+    @cols = The subset of columns that the EM should be performed over, expecting list
+    @lm   = linear model object
+    """
+
+    #EM iterateit
+    Yhat=pd.DataFrame(lm.predict(X))
+    Yhat.index=Y.index
+    Yhat.columns=Y.columns
+    SSE_all=np.square(Y.subtract(Yhat))
+    X_adjust=X.copy()
+
+
+    df_SSE   = []
+    df_logit = []
+
+    for curcov in cols:
+
+        curcells=X[X[curcov]>0].index
+
+        if len(curcells)>2:
+
+            X_notcur=X.copy()
+            X_notcur[curcov]=[0]*len(X_notcur)
+
+            X_sub=X_notcur.loc[curcells]
+
+            Y_sub=Y.loc[curcells]
+
+            GENE_var=2.0*Y_sub.var(axis=0)
+            vargenes=GENE_var[GENE_var>0].index
+
+            Yhat_notcur=pd.DataFrame(lm.predict(X_sub))
+            Yhat_notcur.index=Y_sub.index
+            Yhat_notcur.columns=Y_sub.columns
+
+            SSE_notcur=np.square(Y_sub.subtract(Yhat_notcur))
+            SSE=SSE_all.loc[curcells].subtract(SSE_notcur)
+            SSE_sum=SSE.sum(axis=1)
+
+            SSE_transform=SSE.div(GENE_var+0.5)[vargenes].sum(axis=1)
+            logitify=np.divide(1.0,1.0+np.exp(SSE_transform))#sum))
+
+            df_SSE.append(SSE_sum)
+            df_logit.append(logitify)
+
+            X_adjust[curcov].loc[curcells]=logitify
+
+    return X_adjust
+
 def _train_lm(X_df,
              y_df,
              lm,
@@ -238,7 +293,7 @@ def train_lm(adata_here,lm,
             if X_df.columns[idx] in adjust_vars:
                 adjust_vars_idx.append(idx)
         #get adjusted X (this has the covariates also, though they have not been adjusted)
-        X_adjust=pd.DataFrame(np.array(mimosca.bayes_cov_col(y_df,
+        X_adjust=pd.DataFrame(np.array(bayes_cov_col(y_df,
                                                 pd.DataFrame(X_plus_covariates,
                                                             index=X_df.index),
                                                 adjust_vars_idx,
